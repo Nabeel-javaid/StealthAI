@@ -1,146 +1,80 @@
-# Discreet AI Coding Assistant
+# Discreet AI Coding Assistant for macOS
 
-A discreet desktop application that provides invisible AI coding assistance during screen sharing sessions, with optimized support for macOS, Windows, and cross-platform compatibility.
+A discreet macOS application that provides invisible AI coding assistance during screen sharing sessions, optimized specifically for macOS.
 
 ## Overview
 
-This application is designed for educational purposes to demonstrate potential limitations in screen sharing software. It allows users to get AI-powered coding assistance during screen sharing sessions without the assistance being visible to other participants.
+This application is designed for educational purposes to help during coding interviews on macOS. It allows you to get AI-powered coding assistance during screen sharing sessions without the assistance being visible to other participants.
 
 ## Features
 
-- Background operation during screen sharing (invisible to viewers)
-- Keyboard shortcut activation (default: Ctrl+Alt+C)
-- Input mechanism for coding problems and questions
-- AI-powered responses visible only to the user
-- Focus on coding interview assistance
-- Enhanced screen sharing detection and invisibility for macOS and Windows
-- Advanced invisibility using platform-specific techniques
-- CLI mode for development and testing
+- Background operation during screen sharing (completely invisible to viewers)
+- Keyboard shortcut activation (default: Cmd+Option+C)
+- AI-powered responses visible only to you
+- Specialized coding interview assistance
+- macOS-optimized screen sharing detection for Zoom, Teams, and other applications
+- Advanced macOS-specific invisibility techniques
+- Special macOS development advice and API guidance
 
 ## Requirements
 
-- macOS, Windows, or Linux operating system
+- macOS 10.14 (Mojave) or higher
 - Python 3.8 or higher
 - OpenAI API key
-- Dependencies: PyQt5/PySide2, pynput, openai
+- Dependencies: PyQt5, pynput, openai, psutil, pyobjc
 
-## Installation
+## Installation and Running Instructions
 
 ### macOS Installation
 
-1. Clone the repository or download the source code
-2. Install the required dependencies:
-   ```
-   pip install PyQt5 pynput openai psutil
-   ```
-   
-   For enhanced macOS functionality:
-   ```
-   pip install pyobjc
-   ```
-   
-3. Set your OpenAI API key as an environment variable:
-   ```
-   echo 'export OPENAI_API_KEY="your-api-key-here"' >> ~/.zshrc
-   source ~/.zshrc
-   ```
+1. Clone this repository to your Mac
+2. Create a Python virtual environment (optional but recommended)
+3. Install required dependencies:
+   - Core: PyQt5, pynput, openai, psutil
+   - macOS specific: pyobjc-core, pyobjc-framework-Cocoa, pyobjc-framework-Quartz
+4. Set your OpenAI API key as an environment variable
+5. Run the application with `python main.py`
 
-### Windows Installation
+### Running on macOS
 
-1. Clone the repository or download the source code
-2. Install the required dependencies:
-   ```
-   pip install PyQt5 pynput openai psutil pywin32
-   ```
-   
-3. Set your OpenAI API key as an environment variable:
-   ```
-   setx OPENAI_API_KEY "your-api-key-here"
-   ```
+1. Start the application with `python main.py`
+2. Use the keyboard shortcut Cmd+Option+C to toggle the assistant window
+3. Enter your coding question or paste your code
+4. Click "Get Help" or "macOS Tips" to get AI assistance
+5. The window will automatically become invisible during screen sharing
 
-### Linux Installation
+## macOS-Specific Features
 
-1. Clone the repository or download the source code
-2. Install the required dependencies:
-   ```
-   pip install PyQt5 pynput openai psutil
-   ```
-   
-3. Set your OpenAI API key as an environment variable:
-   ```
-   echo 'export OPENAI_API_KEY="your-api-key-here"' >> ~/.bashrc
-   source ~/.bashrc
-   ```
+- Window sharing prevention using NSWindowSharingNone and advanced macOS APIs
+- Invisible window layer configuration using Cocoa and Quartz frameworks
+- Special "macOS Tips" feature for Apple platform development advice
+- Comprehensive support for Swift, Objective-C, and Apple frameworks
+- Deep integration with macOS window management and screen capture detection
+- Advanced detection for all popular screen sharing applications on macOS:
+  - Zoom, Microsoft Teams, Slack, Discord
+  - Webex, Google Meet, BlueJeans
+  - Built-in macOS Screen Sharing
+  - All major browsers (Safari, Chrome, Firefox)
+- Custom macOS-specific keyboard shortcuts using Cmd+Option instead of Ctrl+Alt
+- Designed for macOS accessibility and user experience guidelines
+- macOS dark mode compatibility and automatic appearance switching
 
-## Usage
+## Required Permissions
 
-1. Run the application:
-   ```
-   python main.py
-   ```
-
-2. When in a screen sharing session, press Ctrl+Alt+C (default shortcut) to toggle the assistant window.
-
-3. Enter your coding problem or paste interview question text.
-
-4. Click "Get Help" to receive AI-powered assistance.
-
-5. The window will automatically adjust its transparency when screen sharing is detected.
-
-## macOS Specific Instructions
-
-### Screen Sharing Detection
-The application will detect when you're sharing your screen in popular applications like Zoom, Microsoft Teams, and Discord. It automatically adjusts the visibility when screen sharing is detected.
-
-### Invisibility Mode
-On macOS, the application uses several techniques to remain invisible during screen sharing:
-
-1. **Window Sharing Type**: Sets the window sharing type to NSWindowSharingNone
-2. **Window Level**: Adjusts the window level to a layer that's typically not captured
-3. **AppleScript Control**: Uses AppleScript to modify window properties
-
-### macOS-Specific Coding Advice
-The application includes a special feature for macOS users:
-
-1. **Get macOS Tips**: Get macOS-specific advice for coding problems, optimized for Apple platforms
-2. **Platform APIs**: Receive guidance on macOS-specific APIs and optimizations
-3. **Objective-C/Swift Support**: Enhanced support for Apple's programming languages
-
-### Permissions
-For full functionality on macOS, you may need to:
-
-1. Grant Accessibility permissions to Terminal/IDE in System Preferences > Security & Privacy > Privacy > Accessibility
-
-
-### Troubleshooting
-If the window is still visible during screen sharing:
-- Try running the application with sudo (may require additional permissions)
-- Verify that PyObjC is properly installed
-- Use the Development Mode checkbox to test invisibility features
-
-## Development Mode
-
-When running on non-macOS platforms, the application will display a "Development Mode" checkbox that allows simulating screen sharing for testing the invisibility features.
-
-## CLI Mode
-
-If GUI libraries (PyQt5/PySide2) are not available, the application will run in CLI mode, which allows testing the AI assistance functionality without the GUI.
+- Accessibility permissions (for keyboard shortcuts)
+- Screen recording permissions (for detecting screen sharing)
 
 ## Configuration
 
-The application creates a configuration file at `~/.coding_assistant_config.json` with the following default settings:
-
-- Activation shortcut: Ctrl+Alt+C
-- Opacity: 0.9
-- Font size: 12
-- Default programming language: Python
-- Theme: dark
-
-You can manually edit this file to change these settings.
+Edit `~/.coding_assistant_config.json` to customize:
+- Keyboard shortcut (default: Cmd+Option+C)
+- Window opacity
+- Default programming language 
+- UI theme
 
 ## Disclaimer
 
-This tool is for educational purposes only. The ability to display content that is invisible during screen sharing could potentially be misused. Always use this tool ethically and responsibly, respecting privacy and academic integrity policies.
+This tool is for educational purposes only. It demonstrates techniques that allow content to remain invisible during screen sharing. Always use ethically and responsibly, respecting privacy and academic integrity policies.
 
 ## License
 

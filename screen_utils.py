@@ -1,5 +1,7 @@
 """
-Screen utilities for detecting screen sharing (Cross-platform implementation)
+Screen utilities for detecting screen sharing on macOS
+Advanced detection methods for popular screen sharing applications like Zoom, Teams, and Meet
+on Apple platforms with enhanced invisibility features
 """
 import os
 import subprocess
@@ -19,8 +21,9 @@ logger = logging.getLogger(__name__)
 
 class ScreenSharingDetector:
     """
-    Utility class to detect if screen sharing is active
-    This version is designed to work cross-platform, with enhanced functionality on Windows
+    Utility class to detect if screen sharing is active on macOS
+    This version is optimized for macOS with advanced detection for Zoom, Teams,
+    and other popular screen sharing applications used on Apple platforms
     """
     
     def __init__(self):
@@ -39,10 +42,24 @@ class ScreenSharingDetector:
                 "safari.exe", "brave.exe", "opera.exe"
             ]
         elif self.is_macos:
+            # Comprehensive list of macOS applications that can share screens
             self.screen_sharing_apps = [
-                "zoom.us", "Microsoft Teams", "Slack", "Discord", 
-                "Webex", "Google Chrome", "Firefox", "Safari", 
-                "Brave Browser", "Opera"
+                # Video conferencing apps
+                "zoom.us", "Microsoft Teams", "Slack", "Discord",
+                "Webex", "Webex Meeting", "WebexHelper", 
+                "Google Meet", "join.me", "BlueJeans", "GoToMeeting",
+                "RingCentral", "Skype", "Skype for Business", 
+                # Browsers
+                "Google Chrome", "Firefox", "Safari", "Brave Browser", 
+                "Opera", "Microsoft Edge", "Arc",
+                # Screen recording/streaming apps
+                "QuickTime Player", "OBS Studio", "ScreenFlow", "Camtasia",
+                "Loom", "Screen Studio", "CleanShot X", "TeamViewer",
+                # Apple native screen sharing
+                "Screen Sharing", "AppleVNCServer", "Photo Booth",
+                # Remote access tools
+                "AnyDesk", "VNC Viewer", "VNC Server", "Jump Desktop",
+                "Screens", "LogMeIn", "Chrome Remote Desktop"
             ]
         else:  # Linux and other platforms
             self.screen_sharing_apps = [

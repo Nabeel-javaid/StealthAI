@@ -1,8 +1,9 @@
 """
-Discreet AI Coding Assistant - Main Application
+Discreet AI Coding Assistant - Main Application for macOS
 
 This application provides invisible AI coding assistance during screen sharing sessions.
-Cross-platform with enhanced macOS and Windows functionality. Optimized for macOS.
+Exclusively optimized for macOS with advanced invisibility features for Zoom, Teams, and other
+screen sharing applications on Apple platforms.
 """
 import sys
 import os
@@ -44,17 +45,26 @@ def main():
         # Detect platform
         system = platform.system()
         is_macos = system == "Darwin"
-        is_windows = system == "Windows"
-        is_linux = system == "Linux"
         
         # Print welcome message with platform info
-        print(f"Discreet AI Coding Assistant")
+        print(f"Discreet AI Coding Assistant for macOS")
         print(f"Detected platform: {system}")
-        print(f"Optimized for: {'macOS' if is_macos else 'Windows' if is_windows else 'Linux'}")
+        
+        # Check if running on macOS
+        if not is_macos:
+            print("⚠️  Warning: This application is designed for macOS only.")
+            print("Some features may not work correctly on this platform.")
+        
         print("=" * 50)
         
         # Initialize configuration
         config = Config()
+        
+        # Set macOS-specific defaults
+        if config.get("activation_shortcut") == "ctrl+alt+c":
+            # Change default shortcut to macOS standard (cmd+option+c)
+            config.set("activation_shortcut", "cmd+alt+c")
+            config.save()
         
         # Initialize AI Assistant
         ai_assistant = AIAssistant()
@@ -63,15 +73,23 @@ def main():
         screen_detector = ScreenSharingDetector()
         
         # macOS-specific setup
-        if is_macos:
-            # Check for macOS-specific dependencies
+        try:
+            import objc
+            HAS_OBJC = True
+            print("✓ PyObjC available: Enhanced macOS invisibility enabled")
+            
+            # Import additional macOS modules if available
             try:
-                import objc
-                HAS_OBJC = True
-                print("✓ PyObjC available: Enhanced macOS invisibility enabled")
+                import Cocoa
+                import Quartz
+                print("✓ All macOS frameworks detected")
             except ImportError:
-                HAS_OBJC = False
-                print("⚠️  PyObjC not available: Limited macOS invisibility (install with 'pip install pyobjc')")
+                print("⚠️  Some macOS frameworks missing - install full pyobjc for best experience")
+        except ImportError:
+            HAS_OBJC = False
+            print("⚠️  PyObjC not available: Limited macOS invisibility")
+            print("   To enable full invisibility on macOS, install PyObjC:")
+            print("   pip install pyobjc-core pyobjc-framework-Cocoa pyobjc-framework-Quartz")
         
         # Check if we're in GUI mode or CLI mode
         if HAS_GUI and HAS_PYQT:
@@ -84,8 +102,9 @@ def main():
             # Create main transparent window
             window = TransparentWindow(ai_assistant, screen_detector)
             
-            # Initialize keyboard listener
-            activation_shortcut = config.get("activation_shortcut", "ctrl+alt+c")
+            # Initialize keyboard listener with macOS-specific shortcut 
+            # (cmd+option+c is more natural on macOS than ctrl+alt+c)
+            activation_shortcut = config.get("activation_shortcut", "cmd+alt+c")
             keyboard_listener = KeyboardListener(activation_shortcut, window.toggle_visibility)
             keyboard_listener.start()
             
@@ -93,6 +112,10 @@ def main():
             shortcut_available = HAS_KEYBOARD
             logger.info(f"Keyboard shortcuts {'enabled' if shortcut_available else 'disabled'}")
             print(f"Activation shortcut: {activation_shortcut} {'(active)' if shortcut_available else '(DISABLED - pynput not available)'}")
+            
+            # macOS-specific shortcut info
+            if is_macos:
+                print("   Note: On macOS, 'cmd' is the Command ⌘ key and 'alt' is the Option ⌥ key")
             
             # Setup periodic screen sharing check
             def check_screen_sharing():
@@ -116,23 +139,26 @@ def main():
         else:
             # CLI mode - Run without GUI for development/testing
             logger.info("Starting in CLI mode (GUI libraries not available)")
-            print("Welcome to Coding Assistant (CLI Mode)")
+            print("Welcome to macOS Coding Assistant (CLI Mode)")
             print("GUI libraries not available. Running in CLI mode for development/testing.")
             
-            # Run API test to verify functionality
-            test_prompt = "Write a simple function to check if a string is a palindrome."
-            print(f"\nTesting AI Assistant with prompt: '{test_prompt}'")
+            # Run API test to verify functionality with macOS-specific query
+            test_prompt = "Explain how to implement Dark Mode in a macOS Swift application."
+            print(f"\nTesting AI Assistant with macOS-specific prompt: '{test_prompt}'")
             
             # First check if we have API key
             if not os.environ.get('OPENAI_API_KEY'):
                 print("⚠️ OPENAI_API_KEY not found in environment variables.")
                 print("To use the AI Assistant, please set your OpenAI API key.")
                 print("Example: export OPENAI_API_KEY=your_api_key_here")
+                print("On macOS, add to your ~/.zshrc file:")
+                print("echo 'export OPENAI_API_KEY=\"your-api-key-here\"' >> ~/.zshrc")
             else:
                 try:
                     print("Sending request to OpenAI API...")
-                    response = ai_assistant.get_coding_assistance(test_prompt, language="Python")
-                    print("\nResponse from AI Assistant:")
+                    # Use Swift as the default language for macOS
+                    response = ai_assistant.get_macos_advice(test_prompt, language="Swift")
+                    print("\nResponse from AI Assistant (macOS advice):")
                     print("-" * 40)
                     print(response)
                     print("-" * 40)
@@ -140,8 +166,8 @@ def main():
                     print(f"Error testing AI Assistant: {str(e)}")
                     print("Please check your OpenAI API key and internet connection.")
             
-            print("\nCLI test completed. In a normal environment with GUI libraries,")
-            print("the application would launch with a transparent, draggable window.")
+            print("\nCLI test completed. In a normal macOS environment with GUI libraries,")
+            print("the application would launch with a transparent window invisible during screen sharing.")
             
             return 0
         

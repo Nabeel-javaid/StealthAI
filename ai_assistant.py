@@ -1,6 +1,7 @@
 """
 AI Assistant module for providing coding help via OpenAI API
-With enhanced capabilities for coding interview assistance
+Specifically optimized for macOS with enhanced capabilities for coding interview assistance
+and macOS-specific development advice for Swift, Objective-C, and Apple frameworks
 """
 import os
 import json
@@ -121,30 +122,118 @@ class AIAssistant:
         Returns:
             str: macOS-specific advice
         """
-        if not IS_MACOS:
-            return "This feature is only available on macOS."
-            
+        # This function is always available even if we're not on macOS
+        # since this is a macOS-focused application
+        
         if not self.client:
             return "Error: OpenAI API client not initialized. Please check your API key."
             
         try:
-            # Prepare the prompt with macOS specifics
-            content = f"""I'm in a coding interview on macOS. Please help me with this problem:
+            # Set default language to Swift if none provided
+            if not language:
+                language = "Swift"
+                
+            # Prepare system prompt with enhanced macOS knowledge
+            system_prompt = """You are an expert Apple platform developer with deep knowledge of:
+1. macOS architecture and frameworks (AppKit, Cocoa, Core Services)
+2. Swift and SwiftUI for macOS development
+3. Objective-C and legacy macOS APIs
+4. macOS-specific performance optimizations and design patterns
+5. Screen sharing detection and invisibility techniques on macOS
+6. macOS security and permissions model
+7. Apple Silicon optimizations
+
+Provide actionable advice for the user's coding question, with a focus on modern
+macOS-specific approaches. Include relevant:
+- Code examples using Swift or the user's preferred language
+- Apple framework recommendations
+- Platform-specific considerations
+- Performance best practices for macOS
+"""
+            
+            # Prepare the user prompt with macOS specifics
+            content = f"""I'm working on a macOS development problem. Please help me with this:
 
 {code_problem}
 
-In your response, please include any macOS-specific considerations, APIs, or optimizations if relevant."""
+In your response, provide:
+1. A clear explanation of the macOS-specific approach
+2. Sample code that follows Apple's latest best practices
+3. Any platform-specific considerations or optimizations
+4. Relevant Apple frameworks and APIs for macOS"""
             
-            if language:
-                if language.lower() in ['swift', 'objective-c']:
-                    content += "\n\nPlease provide sample code using modern Swift/Objective-C best practices and Apple's recommended APIs."
-                    
+            # Add language-specific additions
+            if language.lower() == 'swift':
+                content += "\n\nPlease use modern Swift 5.9+ and SwiftUI when appropriate, with macOS-specific components."
+            elif language.lower() == 'objective-c':
+                content += "\n\nPlease use modern Objective-C with ARC and the latest macOS APIs."
+            elif language.lower() in ['python', 'java', 'javascript', 'typescript']:
+                content += f"\n\nPlease provide recommendations for {language} libraries or frameworks that work well on macOS, as well as any macOS-specific considerations."
+            
             # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
             # do not change this unless explicitly requested by the user
             response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": "You are an expert Apple platform developer familiar with macOS, Swift, Objective-C, and macOS-specific optimization techniques. Help the user with their coding interview question, providing macOS-specific insights when relevant."},
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": content}
+                ],
+                max_tokens=2500
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            error_msg = f"Error getting macOS advice: {str(e)}"
+            logger.error(error_msg)
+            return f"Error: {error_msg}"
+            
+    def analyze_macos_code(self, code, language="Swift"):
+        """
+        Analyze macOS-specific code for improvements and best practices
+        
+        Args:
+            code (str): Code to analyze
+            language (str, optional): Programming language, defaults to Swift
+            
+        Returns:
+            str: macOS-specific code analysis
+        """
+        if not self.client:
+            return "Error: OpenAI API client not initialized. Please check your API key."
+            
+        try:
+            # Prepare system prompt for macOS code analysis
+            system_prompt = """You are an expert macOS code reviewer with deep knowledge of:
+1. Apple's Human Interface Guidelines and design principles
+2. macOS performance optimization
+3. Apple platform best practices and Swift/Objective-C idioms
+4. Common security and privacy issues on macOS
+5. Memory management and thread safety on Apple platforms
+6. Screen sharing and window management on macOS
+
+Analyze the provided code specifically for macOS best practices and provide actionable advice."""
+            
+            # Prepare the user prompt
+            content = f"""Please review this {language} code for a macOS application:
+
+```{language}
+{code}
+```
+
+Please provide a detailed analysis focusing on:
+1. macOS-specific best practices and idioms
+2. Performance optimizations for Apple platforms
+3. Interface guideline compliance
+4. Security and sandbox considerations
+5. Suggested improvements for macOS compatibility"""
+            
+            # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
+            # do not change this unless explicitly requested by the user
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": content}
                 ],
                 max_tokens=2000
@@ -153,6 +242,6 @@ In your response, please include any macOS-specific considerations, APIs, or opt
             return response.choices[0].message.content
             
         except Exception as e:
-            error_msg = f"Error getting macOS advice: {str(e)}"
+            error_msg = f"Error analyzing macOS code: {str(e)}"
             logger.error(error_msg)
             return f"Error: {error_msg}"

@@ -27,6 +27,18 @@ args = "API Test"
 task = "workflow.run"
 args = "Debug Mode"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Screen Capture"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "GUI Capture"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Simple Capture"
+
 [[workflows.workflow]]
 name = "Coding Assistant"
 author = "agent"
@@ -82,6 +94,48 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python debug_mode.py"
+
+[[workflows.workflow]]
+name = "Screen Capture"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python capture_and_analyze.py"
+
+[[workflows.workflow]]
+name = "GUI Capture"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python capture_gui.py"
+
+[[workflows.workflow]]
+name = "Simple Capture"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python simple_capture.py"
 
 [deployment]
 run = ["sh", "-c", "python main.py"]

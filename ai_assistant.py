@@ -245,3 +245,52 @@ Please provide a detailed analysis focusing on:
             error_msg = f"Error analyzing macOS code: {str(e)}"
             logger.error(error_msg)
             return f"Error: {error_msg}"
+            
+    def analyze_image(self, base64_image, prompt=None):
+        """
+        Analyze image content using OpenAI's multimodal capabilities
+        
+        Args:
+            base64_image (str): Base64 encoded image string
+            prompt (str, optional): Specific instructions for the analysis
+            
+        Returns:
+            str: AI analysis of the image content
+        """
+        if not self.client:
+            return "Error: OpenAI API client not initialized. Please check your API key."
+            
+        try:
+            # Default prompt if none provided
+            if not prompt:
+                prompt = "Analyze this screenshot and describe what you see. If there's code visible, explain what it does."
+                
+            # Craft system message based on context
+            system_message = """You are an expert coding assistant that can analyze screenshots.
+When analyzing screenshots:
+1. Describe what you see in the image
+2. If there's code visible, explain what it does and suggest improvements
+3. If there's an error message or log output, explain the issue and suggest solutions
+4. For UI elements, describe their purpose and any design considerations
+5. Be detailed but concise in your analysis"""
+            
+            # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
+            # do not change this unless explicitly requested by the user
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}}
+                    ]}
+                ],
+                max_tokens=3000
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            error_msg = f"Error analyzing image: {str(e)}"
+            logger.error(error_msg)
+            return f"Error: {error_msg}"

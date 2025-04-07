@@ -1,61 +1,97 @@
 #!/usr/bin/env python3
 """
-Very simple screen capture and analysis script without PyQt
-This avoids all the GUI-related issues while still providing the core functionality
+Simpler Screen Capture & Analysis Tool
+
+This is a minimalist version that works reliably on macOS without
+GUI dependencies. It captures the screen using the built-in screencapture
+utility and sends it to OpenAI for analysis.
 """
 import os
 import sys
-import time
 import base64
 import tempfile
 import subprocess
 from datetime import datetime
 
-# Import OpenAI only if needed for API analysis
+# Check for OpenAI API key
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    print("Error: OPENAI_API_KEY not set in environment.")
+    print("Please set it with: export OPENAI_API_KEY='your-api-key'")
+    sys.exit(1)
+
 try:
-    import openai
+    from openai import OpenAI
+    client = OpenAI(api_key=OPENAI_API_KEY)
 except ImportError:
-    print("Warning: openai module not found. You won't be able to analyze captures.")
-    print("To install: pip install openai")
+    print("Error: OpenAI package not installed. Install with 'pip install openai'")
+    sys.exit(1)
 
 def capture_screen():
-    """Capture screen using macOS native screencapture utility"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    temp_dir = tempfile.gettempdir()
-    screenshot_path = os.path.join(temp_dir, f"screen_{timestamp}.png")
+    """
+    Capture the screen using macOS screencapture utility
     
-    # Take screenshot
-    print("Taking screenshot...")
-    subprocess.run(["screencapture", "-x", screenshot_path], check=True)
-    print(f"Screen captured to: {screenshot_path}")
-    return screenshot_path
+    Returns:
+        str: Path to the captured screenshot
+    """
+    # Create a temporary file for the screenshot
+    fd, screenshot_path = tempfile.mkstemp(suffix=".png")
+    os.close(fd)
+    
+    try:
+        # Use the screencapture utility
+        print("Capturing screen in 3 seconds...")
+        for i in range(3, 0, -1):
+            print(f"{i}...")
+            subprocess.run(["sleep", "1"], check=True)
+        
+        print("Capturing...")
+        subprocess.run(["screencapture", screenshot_path], check=True)
+        print(f"Screenshot saved to: {screenshot_path}")
+        return screenshot_path
+    except Exception as e:
+        print(f"Error capturing screen: {e}")
+        if os.path.exists(screenshot_path):
+            os.unlink(screenshot_path)
+        return None
 
 def encode_image(image_path):
-    """Encode image as base64 for API submission"""
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
+    """
+    Encode image to base64 for API submission
+    
+    Args:
+        image_path (str): Path to image file
+        
+    Returns:
+        str: Base64 encoded image
+    """
+    try:
+        with open(image_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode('utf-8')
+    except Exception as e:
+        print(f"Error encoding image: {e}")
+        return None
 
 def analyze_with_openai(image_path, prompt):
-    """Analyze image with OpenAI"""
-    # Check for API key
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        print("ERROR: OPENAI_API_KEY environment variable not set.")
-        print("Please set it with: export OPENAI_API_KEY='your_key_here'")
+    """
+    Analyze image with OpenAI Vision
+    
+    Args:
+        image_path (str): Path to image file
+        prompt (str): Prompt for analysis
+        
+    Returns:
+        str: Analysis result
+    """
+    # Encode image
+    base64_image = encode_image(image_path)
+    if not base64_image:
         return None
     
-    # Encode image
-    print("Encoding image...")
-    base64_image = encode_image(image_path)
-    
-    # Initialize OpenAI client
-    client = openai.OpenAI(api_key=api_key)
-    
-    # Call the API
+    print("Sending to OpenAI for analysis...")
     try:
-        print("Sending to OpenAI...")
         response = client.chat.completions.create(
-            model="gpt-4o",  # The newest OpenAI model is "gpt-4o" 
+            model="gpt-4o",  # the newest OpenAI model is "gpt-4o"
             messages=[
                 {
                     "role": "user",
@@ -75,80 +111,129 @@ def analyze_with_openai(image_path, prompt):
             ],
             max_tokens=2000
         )
+        
         return response.choices[0].message.content
     except Exception as e:
-        print(f"Error calling OpenAI API: {str(e)}")
+        print(f"Error analyzing with OpenAI: {e}")
         return None
 
-def main():
-    """Main function"""
-    print("=" * 60)
-    print("StealthAI - Simple Screen Capture")
-    print("=" * 60)
-    print("This tool captures your screen and analyzes it with OpenAI.")
-    print("It runs in the terminal to avoid GUI issues.")
+def save_result(result, screenshot_path):
+    """
+    Save analysis result to file
     
-    while True:
-        print("\nMain Menu:")
-        print("1. Capture screen and analyze")
-        print("2. Use custom prompt")
-        print("3. Exit")
+    Args:
+        result (str): Analysis result
+        screenshot_path (str): Path to screenshot
         
-        try:
-            choice = input("Enter your choice (1-3): ")
-            
-            if choice == "3":
-                print("Exiting program.")
-                break
-                
-            if choice == "1" or choice == "2":
-                # Capture the screen
-                print("\nPreparing to capture the screen in 3 seconds...")
-                print("Switch to the window you want to capture.")
-                for i in range(3, 0, -1):
-                    print(f"{i}...")
-                    time.sleep(1)
-                
-                # Take the screenshot
-                screenshot_path = capture_screen()
-                
-                # Set the prompt
-                prompt = None
-                if choice == "1":
-                    prompt = "Analyze this coding problem or multiple choice question. If it's code, explain the solution step by step and provide working code. If it's a multiple choice question, identify the correct answer with explanation."
-                else:
-                    print("\nEnter your custom prompt:")
-                    prompt = input("> ")
-                
-                # Analyze the image
-                print("\nAnalyzing image with OpenAI...")
-                result = analyze_with_openai(screenshot_path, prompt)
-                
-                if result:
-                    print("\n" + "=" * 60)
-                    print("ANALYSIS RESULT:")
-                    print("=" * 60)
-                    print(result)
-                    print("=" * 60)
-                    
-                    # Save result to file
-                    result_path = os.path.splitext(screenshot_path)[0] + "_analysis.txt"
-                    with open(result_path, "w") as f:
-                        f.write(result)
-                    print(f"\nAnalysis saved to: {result_path}")
-                    
-                    # Open the file for viewing
-                    print("Opening result file...")
-                    if sys.platform == "darwin":  # macOS
-                        subprocess.run(["open", result_path], check=False)
-            else:
-                print("Invalid choice. Please try again.")
-                
-        except KeyboardInterrupt:
-            print("\nOperation cancelled by user.")
-            break
-        except Exception as e:
-            print(f"\nError: {str(e)}")
+    Returns:
+        str: Path to saved result
+    """
+    # Create a directory for the results
+    results_dir = os.path.expanduser("~/Documents/AI_Analysis")
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Generate filenames
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    result_filename = f"analysis_{timestamp}.txt"
+    result_path = os.path.join(results_dir, result_filename)
+    
+    # Save the screenshot to the results directory
+    screenshot_dest = os.path.join(results_dir, f"screenshot_{timestamp}.png")
+    subprocess.run(["cp", screenshot_path, screenshot_dest], check=True)
+    
+    # Save the result
+    with open(result_path, "w") as f:
+        f.write(result)
+    
+    print(f"Screenshot saved to: {screenshot_dest}")
+    print(f"Analysis saved to: {result_path}")
+    
+    # Also create a HTML file that's easy to view
+    html_path = os.path.join(results_dir, f"analysis_{timestamp}.html")
+    with open(html_path, "w") as f:
+        f.write(f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>Analysis Result</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }}
+        h1 {{ color: #333; }}
+        pre {{ background-color: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }}
+        .timestamp {{ color: #777; margin-bottom: 20px; }}
+        .image {{ max-width: 100%; height: auto; margin: 20px 0; border: 1px solid #ccc; }}
+    </style>
+</head>
+<body>
+    <h1>AI Analysis Result</h1>
+    <div class="timestamp">Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</div>
+    <img src="file://{os.path.abspath(screenshot_dest)}" class="image" alt="Screenshot">
+    <h2>Analysis:</h2>
+    <pre>{result}</pre>
+</body>
+</html>
+""")
+    
+    print(f"HTML result saved to: {html_path}")
+    return result_path
+
+def main():
+    """Main function for the application"""
+    print("==== Simple Screen Capture & Analysis Tool ====")
+    print("This tool captures your screen and analyzes it with OpenAI.")
+    print("Results are saved to ~/Documents/AI_Analysis/")
+    print("\nChoose analysis type:")
+    print("1. Coding Problem (analyze code and provide solution)")
+    print("2. Multiple Choice (analyze question and identify correct answer)")
+    print("3. Debug Code (find and fix errors in code)")
+    print("4. Custom Prompt")
+    
+    try:
+        choice = int(input("\nEnter choice (1-4): "))
+        
+        if choice == 1:
+            prompt = "Analyze this coding problem. Identify the task, provide a detailed step-by-step solution, and include working code with explanations."
+        elif choice == 2:
+            prompt = "Analyze this multiple choice question. Identify the correct answer and explain why it's correct and why the other options are incorrect."
+        elif choice == 3:
+            prompt = "Debug this code. Identify any errors, explain why they're happening, and provide fixed code."
+        elif choice == 4:
+            prompt = input("Enter your custom prompt: ")
+        else:
+            print("Invalid choice. Using default prompt.")
+            prompt = "Analyze what's shown in this screenshot and provide detailed information."
+        
+        # Capture the screen
+        screenshot_path = capture_screen()
+        if not screenshot_path:
+            print("Screen capture failed. Exiting.")
+            return 1
+        
+        # Analyze with OpenAI
+        result = analyze_with_openai(screenshot_path, prompt)
+        if not result:
+            print("Analysis failed. Exiting.")
+            return 1
+        
+        # Save result
+        save_result(result, screenshot_path)
+        
+        # Display result
+        print("\nAnalysis Result:")
+        print("=" * 50)
+        print(result)
+        print("=" * 50)
+        
+        # Clean up temporary file
+        os.unlink(screenshot_path)
+        
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+        return 1
+    except KeyboardInterrupt:
+        print("\nOperation cancelled by user.")
+        return 1
+    
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

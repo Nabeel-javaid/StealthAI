@@ -1,122 +1,185 @@
-# Installation Guide for StealthAI
+# StealthAI Installation Guide
 
-This document provides detailed instructions for setting up the StealthAI Coding Assistant on macOS.
+This guide provides detailed instructions for installing and setting up StealthAI, a screen capture and analysis tool that works invisibly during interviews and exams.
 
 ## Prerequisites
 
-- macOS (10.14 Mojave or later recommended)
-- Python 3.8 or later
+- macOS 10.15 or newer
+- Python 3.7+
 - OpenAI API key
 
-## Required macOS Permissions
+## Installation Options
 
-For full functionality, you need to grant the following permissions:
+### Option 1: Automated Installation (Recommended)
 
-1. **Accessibility Permissions** (for keyboard shortcuts):
-   - Open System Preferences > Security & Privacy > Privacy > Accessibility
-   - Click the lock icon to make changes
-   - Add Terminal.app (or your Python IDE) to the list
-   - Ensure the checkbox next to the application is checked
-
-2. **Screen Recording Permissions** (for screen capture features):
-   - Open System Preferences > Security & Privacy > Privacy > Screen Recording
-   - Click the lock icon to make changes
-   - Add Terminal.app (or your Python IDE) to the list
-   - Ensure the checkbox next to the application is checked
-
-**Note:** You may need to restart your Terminal or IDE after granting these permissions.
-
-## Installation Steps
-
-1. **Install Required Python Packages**
-
+1. Download the latest release from the GitHub repository
+2. Run the installation script:
    ```bash
-   # Dependencies for the main application
-   pip install openai>=1.0.0 pynput>=1.7.6 psutil>=5.9.0
-   
-   # macOS-specific dependencies
-   pip install PyObjC>=9.0.1
-   
-   # Optional: GUI support (for capture_gui.py)
-   pip install PyQt5>=5.15.0
+   chmod +x invisibility_setup.sh
+   ./invisibility_setup.sh
+   ```
+3. The script will:
+   - Install required dependencies
+   - Set up your OpenAI API key
+   - Install the application as a background service
+   - Create a hidden folder for results
+   - Provide usage instructions
+
+### Option 2: Manual Installation
+
+1. Install required Python packages:
+   ```bash
+   pip install openai pynput
    ```
 
-2. **Set Up Your OpenAI API Key**
-
-   You need to set your OpenAI API key as an environment variable:
-
+2. Set your OpenAI API key:
    ```bash
-   export OPENAI_API_KEY=your_api_key_here
+   export OPENAI_API_KEY="your_api_key_here"
    ```
-
-   For persistent configuration, add this to your `.zshrc` or `.bash_profile`:
-
+   
+   For persistent access, add this to your shell profile:
    ```bash
-   echo 'export OPENAI_API_KEY=your_api_key_here' >> ~/.zshrc
+   echo 'export OPENAI_API_KEY="your_api_key_here"' >> ~/.zshrc
    source ~/.zshrc
    ```
 
-3. **Create a macOS App Bundle (Optional)**
-
-   For a more native experience, you can create a macOS app bundle:
-
+3. Copy the application files to a location of your choice:
    ```bash
-   python create_macos_app.py
+   mkdir -p ~/Library/Application\ Support/StealthAI
+   cp hidden_capture.py ~/Library/Application\ Support/StealthAI/
+   chmod +x ~/Library/Application\ Support/StealthAI/hidden_capture.py
    ```
 
-   This will create a `StealthAI.app` that you can move to your Applications folder.
-
-## Verification
-
-To verify your installation is working correctly:
-
-1. **Test API Connection**
-
-   ```bash
-   python test_api.py
+4. Set up autostart (optional):
+   Create a launch agent at `~/Library/LaunchAgents/com.stealthai.capture.plist` with the following content:
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+   <plist version="1.0">
+   <dict>
+       <key>Label</key>
+       <string>com.stealthai.capture</string>
+       <key>ProgramArguments</key>
+       <array>
+           <string>/usr/bin/python3</string>
+           <string>~/Library/Application Support/StealthAI/hidden_capture.py</string>
+       </array>
+       <key>RunAtLoad</key>
+       <true/>
+       <key>KeepAlive</key>
+       <false/>
+       <key>EnvironmentVariables</key>
+       <dict>
+           <key>OPENAI_API_KEY</key>
+           <string>your_api_key_here</string>
+       </dict>
+   </dict>
+   </plist>
    ```
 
-2. **Test Keyboard Shortcuts**
-
+5. Load the launch agent:
    ```bash
-   python test_keyboard.py
+   launchctl load ~/Library/LaunchAgents/com.stealthai.capture.plist
    ```
 
-3. **Test Screen Capture**
+## Required macOS Permissions
 
+StealthAI requires the following permissions:
+
+1. **Screen Recording**
+   - Go to System Preferences > Security & Privacy > Privacy > Screen Recording
+   - Add Terminal or the app you're using to run StealthAI
+
+2. **Accessibility**
+   - Go to System Preferences > Security & Privacy > Privacy > Accessibility
+   - Add Terminal or the app you're using to run StealthAI
+
+You will be prompted to grant these permissions the first time you run the application.
+
+## Usage
+
+### Using the Hidden Capture Tool (hidden_capture.py)
+
+This tool runs invisibly in the background. Use these keyboard shortcuts:
+
+- **Command+Shift+1**: Capture and analyze coding problems
+- **Command+Shift+2**: Capture and analyze multiple choice questions
+- **Command+Shift+3**: Capture and debug code
+
+Results are saved to: `~/Documents/.interview_helper/`
+
+### Using the Terminal Tool (simpler_capture.py)
+
+If you prefer a terminal interface:
+
+1. Run the tool:
    ```bash
-   python simple_capture.py
+   python3 simpler_capture.py
    ```
+
+2. Select the analysis type:
+   - Option 1: Coding Problem
+   - Option 2: Multiple Choice
+   - Option 3: Debug Code
+   - Option 4: Custom Prompt
+
+3. The tool will:
+   - Count down before taking a screenshot
+   - Send the screenshot to OpenAI for analysis
+   - Display and save the results
+
+Results are saved to: `~/Documents/AI_Analysis/`
+
+### Using the Universal Capture Tool (universal_capture.py)
+
+For analyzing existing images:
+
+```bash
+python3 universal_capture.py path/to/image.png
+```
+
+With custom prompt:
+```bash
+python3 universal_capture.py path/to/image.png --prompt "Analyze this coding problem"
+```
+
+## Viewing Results
+
+- **Hidden Capture Tool**: Results are in `~/Documents/.interview_helper/`
+- **Simple Capture Tool**: Results are in `~/Documents/AI_Analysis/`
+
+Each result includes:
+- The original screenshot
+- A text file with the analysis
+- An HTML file with formatted analysis and the image
 
 ## Troubleshooting
 
-### Common Issues and Solutions
+1. **Keyboard Shortcuts Not Working**
+   - Make sure Accessibility permissions are granted
+   - Check if there are conflicting system shortcuts
 
-1. **"No module named 'openai'"**
-   - Solution: Run `pip install openai>=1.0.0`
+2. **Screen Capture Fails**
+   - Verify Screen Recording permissions are granted
+   - Try running the terminal tool to test basic functionality
 
-2. **Keyboard shortcuts not working**
-   - Solution: Check accessibility permissions in System Preferences
+3. **OpenAI API Errors**
+   - Check that your API key is correctly set
+   - Verify your OpenAI account has available credits
 
-3. **Screen capture showing blank or black screen**
-   - Solution: Check screen recording permissions in System Preferences
-   - Try running Terminal with elevated permissions
+## Uninstalling
 
-4. **OpenAI API errors**
-   - Verify your API key is correct and has sufficient credits
-   - Check your internet connection
+To completely remove StealthAI:
 
-5. **"No module named 'Quartz'" or similar PyObjC errors**
-   - Solution: Run `pip install PyObjC>=9.0.1`
+1. Unload the launch agent:
+   ```bash
+   launchctl unload ~/Library/LaunchAgents/com.stealthai.capture.plist
+   ```
 
-6. **GUI not appearing**
-   - For PyQt5 issues: Run `pip install PyQt5>=5.15.0`
-   - Try running in debug mode: `python debug_mode.py`
-
-### Getting Help
-
-If you continue to experience issues, try the following:
-
-1. Check the application logs in the `assistant.log` file
-2. Run in debug mode: `python debug_mode.py`
-3. Try the fallback CLI mode: `python fallback_mode.py`
+2. Remove the files:
+   ```bash
+   rm ~/Library/LaunchAgents/com.stealthai.capture.plist
+   rm -rf ~/Library/Application\ Support/StealthAI
+   rm -rf ~/Documents/.interview_helper
+   rm -rf ~/Documents/AI_Analysis
+   ```

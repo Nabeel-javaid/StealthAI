@@ -125,6 +125,14 @@ class SimpleOverlay(QMainWindow):
         self.setWindowTitle("Simple Overlay")
         self.setWindowFlags(Qt.WindowStaysOnTopHint)  # Stay on top but remain visible in screen sharing
         
+        # Load prompt templates
+        self.prompt_templates = {
+            "Coding Problem": "Analyze this coding problem. Identify the task, provide a detailed step-by-step solution, and include working code with explanations.",
+            "Multiple Choice": "Analyze this multiple choice question. Identify the correct answer and explain why it's correct and why the other options are incorrect.",
+            "Debugging": "Debug this code. Identify any errors, explain why they're happening, and provide fixed code.",
+            "Algorithm Design": "Analyze this algorithm problem. Explain the optimal approach, the time and space complexity, and provide a complete implementation."
+        }
+        
         # Create UI components
         self._create_ui()
         
@@ -134,14 +142,6 @@ class SimpleOverlay(QMainWindow):
         # Setup dragging vars
         self.dragging = False
         self.drag_position = None
-        
-        # Load prompt templates
-        self.prompt_templates = {
-            "Coding Problem": "Analyze this coding problem. Identify the task, provide a detailed step-by-step solution, and include working code with explanations.",
-            "Multiple Choice": "Analyze this multiple choice question. Identify the correct answer and explain why it's correct and why the other options are incorrect.",
-            "Debugging": "Debug this code. Identify any errors, explain why they're happening, and provide fixed code.",
-            "Algorithm Design": "Analyze this algorithm problem. Explain the optimal approach, the time and space complexity, and provide a complete implementation."
-        }
         
         # Position window in the top-right corner
         screen = QApplication.primaryScreen().geometry()

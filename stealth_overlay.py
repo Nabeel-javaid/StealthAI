@@ -132,6 +132,14 @@ class TransparentOverlay(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         
+        # Load prompt templates
+        self.prompt_templates = {
+            "Coding Problem": "Analyze this coding problem. Identify the task, provide a detailed step-by-step solution, and include working code with explanations.",
+            "Multiple Choice": "Analyze this multiple choice question. Identify the correct answer and explain why it's correct and why the other options are incorrect.",
+            "Debugging": "Debug this code. Identify any errors, explain why they're happening, and provide fixed code.",
+            "Algorithm Design": "Analyze this algorithm problem. Explain the optimal approach, the time and space complexity, and provide a complete implementation."
+        }
+        
         # For macOS: make it invisible to screen recording
         if platform.system() == "Darwin":
             try:
@@ -149,14 +157,6 @@ class TransparentOverlay(QMainWindow):
         # Setup dragging vars
         self.dragging = False
         self.drag_position = None
-        
-        # Load prompt templates
-        self.prompt_templates = {
-            "Coding Problem": "Analyze this coding problem. Identify the task, provide a detailed step-by-step solution, and include working code with explanations.",
-            "Multiple Choice": "Analyze this multiple choice question. Identify the correct answer and explain why it's correct and why the other options are incorrect.",
-            "Debugging": "Debug this code. Identify any errors, explain why they're happening, and provide fixed code.",
-            "Algorithm Design": "Analyze this algorithm problem. Explain the optimal approach, the time and space complexity, and provide a complete implementation."
-        }
         
         # Position window in the top-right corner
         screen = QApplication.primaryScreen().geometry()

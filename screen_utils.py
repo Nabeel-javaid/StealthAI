@@ -25,22 +25,36 @@ class ScreenSharingDetector:
     
     def __init__(self):
         """Initialize the screen sharing detector"""
-        self.screen_sharing_apps = [
-            # Windows
-            "Zoom.exe", "Teams.exe", "msTeams.exe", "slack.exe", 
-            "DiscordPTB.exe", "Discord.exe", "WebexHost.exe", "Webex.exe",
-            "GoogleMeet.exe", "chrome.exe", "msedge.exe", "firefox.exe", 
-            "safari.exe", "brave.exe", "opera.exe",
-            # macOS/Linux
-            "zoom", "teams", "slack", "discord", "webex", "chrome", 
-            "firefox", "safari", "brave", "opera"
-        ]
+        # Define OS-specific platform
+        self.is_windows = platform.system() == "Windows"
+        self.is_macos = platform.system() == "Darwin"
+        self.is_linux = platform.system() == "Linux"
+        
+        # OS-specific screen sharing applications
+        if self.is_windows:
+            self.screen_sharing_apps = [
+                "Zoom.exe", "Teams.exe", "msTeams.exe", "slack.exe", 
+                "DiscordPTB.exe", "Discord.exe", "WebexHost.exe", "Webex.exe",
+                "GoogleMeet.exe", "chrome.exe", "msedge.exe", "firefox.exe", 
+                "safari.exe", "brave.exe", "opera.exe"
+            ]
+        elif self.is_macos:
+            self.screen_sharing_apps = [
+                "zoom.us", "Microsoft Teams", "Slack", "Discord", 
+                "Webex", "Google Chrome", "Firefox", "Safari", 
+                "Brave Browser", "Opera"
+            ]
+        else:  # Linux and other platforms
+            self.screen_sharing_apps = [
+                "zoom", "teams", "slack", "discord", "webex", "chrome", 
+                "firefox", "safari", "brave", "opera"
+            ]
+
         self.last_result = False
         self.cache_time = 0
-        self.is_windows = platform.system() == "Windows"
         
-        # In development mode (not on Windows), we'll use a simulated status
-        self.dev_mode = not self.is_windows
+        # In development mode, we'll use a simulated status
+        self.dev_mode = not (self.is_windows or self.is_macos)
         self.simulated_sharing = False
         
     def is_screen_sharing(self):
@@ -63,7 +77,8 @@ class ScreenSharingDetector:
                         if self._check_sharing_mode(process.info['pid']):
                             return True
                         
-            # Method 2: On Windows, check window titles (skipped in dev mode)
+            # Method 2: Platform-specific window title checks
+            # Windows implementation
             if self.is_windows:
                 try:
                     # Import Windows-specific modules only on Windows
@@ -88,6 +103,187 @@ class ScreenSharingDetector:
                     return found_sharing
                 except ImportError:
                     logger.warning("win32gui module not available")
+                    
+            # macOS implementation - check for screen sharing indicators
+            elif self.is_macos:
+                try:
+                    # Enhanced macOS screen sharing detection with multiple techniques
+                    
+                    # 1. Look for specific macOS processes related to screen sharing
+                    mac_sharing_processes = [
+                        "ScreenSharing", "screencapture", "QuickTime Player", 
+                        "ScreenCaptureKit", "com.apple.screensharing", "avconferenced",
+                        "ShareKit", "ScreensharingAgent", "screencaptureui", "corescreend"
+                    ]
+                    
+                    # 2. Check for screen sharing system service status
+                    service_check_cmd = """
+                    osascript -e 'do shell script "ps aux | grep -v grep | grep -E \\"Screen Sharing|ScreenSharing|screencapture|screencaptureui\\"" with administrator privileges'
+                    """
+                    
+                    # 3. Check for Zoom, Teams, and other common apps in screen sharing mode
+                    zoom_check_cmd = """
+                    osascript -e 'tell application "System Events" to tell process "zoom.us" to return (get value of attribute "AXMenuItemCmdChar" of menu item "Stop Share" of menu 1 of menu bar item "Meeting" of menu bar 1)' 2>/dev/null
+                    """
+                    
+                    teams_check_cmd = """
+                    osascript -e 'tell application "System Events" to tell process "Microsoft Teams" to return (get name of menu items of menu 1 of menu bar item "Share" of menu bar 1 contains "Stop sharing")' 2>/dev/null
+                    """
+                    
+                    # 4. Check for macOS Screen Sharing Daemon activity
+                    daemon_check_cmd = "ps aux | grep -v grep | grep screensharingd"
+                    
+                    # 5. Check for screen recording indicator in menu bar
+                    recording_indicator_cmd = """
+                    osascript -e '
+                    tell application "System Events"
+                        set menuBarItems to menu bar items of menu bar 1 of process "ControlCenter"
+                        set hasRecordingIndicator to false
+                        repeat with mbItem in menuBarItems
+                            if description of mbItem contains "screen recording" or description of mbItem contains "Screen Recording" then
+                                set hasRecordingIndicator to true
+                                exit repeat
+                            end if
+                        end repeat
+                        return hasRecordingIndicator
+                    end tell'
+                    """
+                    
+                    # 6. Check for TCC.db screen capture permissions in use
+                    # macOS keeps track of which apps are currently allowed to capture the screen
+                    tcc_check_cmd = """
+                    osascript -e 'do shell script "lsof 2>/dev/null | grep TCC.db | grep -v grep"'
+                    """
+                    
+                    # 7. Check for CoreMedia frameworks in use by video conferencing apps
+                    coremedia_check_cmd = """
+                    osascript -e 'do shell script "lsof 2>/dev/null | grep CoreMedia | grep -v grep"'
+                    """
+                    
+                    # Check process list for known screen sharing processes
+                    if HAS_PSUTIL:
+                        for proc in psutil.process_iter(['name']):
+                            proc_name = proc.info['name'] if 'name' in proc.info else ""
+                            if any(sharing_app.lower() in proc_name.lower() for sharing_app in mac_sharing_processes):
+                                logger.info(f"Screen sharing detected: Found process {proc_name}")
+                                return True
+                    
+                    # Execute all the check commands
+                    try:
+                        # Check for screen sharing service status
+                        service_result = subprocess.run(
+                            service_check_cmd, 
+                            shell=True, 
+                            text=True, 
+                            capture_output=True, 
+                            timeout=1
+                        )
+                        if service_result.stdout.strip():
+                            logger.info("Screen sharing detected: Screen sharing service is active")
+                            return True
+                    except Exception as e:
+                        logger.debug(f"Failed to check screen sharing service: {e}")
+                    
+                    try:
+                        # Check for Zoom screen sharing
+                        zoom_result = subprocess.run(
+                            zoom_check_cmd, 
+                            shell=True, 
+                            text=True, 
+                            capture_output=True, 
+                            timeout=1
+                        )
+                        if zoom_result.stdout.strip() and "error" not in zoom_result.stdout.lower():
+                            logger.info("Screen sharing detected: Zoom is sharing screen")
+                            return True
+                    except Exception:
+                        # Ignore errors when Zoom isn't running
+                        pass
+                    
+                    try:
+                        # Check for Teams screen sharing
+                        teams_result = subprocess.run(
+                            teams_check_cmd, 
+                            shell=True, 
+                            text=True, 
+                            capture_output=True, 
+                            timeout=1
+                        )
+                        if teams_result.stdout.strip().lower() == 'true':
+                            logger.info("Screen sharing detected: Microsoft Teams is sharing screen")
+                            return True
+                    except Exception:
+                        # Ignore errors when Teams isn't running
+                        pass
+                    
+                    try:
+                        # Check for screen sharing daemon
+                        daemon_result = subprocess.run(
+                            daemon_check_cmd, 
+                            shell=True, 
+                            text=True, 
+                            capture_output=True, 
+                            timeout=1
+                        )
+                        if daemon_result.stdout.strip():
+                            logger.info("Screen sharing detected: screensharingd is running")
+                            return True
+                    except Exception as e:
+                        logger.debug(f"Failed to check screen sharing daemon: {e}")
+                    
+                    try:
+                        # Check for screen recording indicator
+                        recording_result = subprocess.run(
+                            recording_indicator_cmd, 
+                            shell=True, 
+                            text=True, 
+                            capture_output=True, 
+                            timeout=1
+                        )
+                        if recording_result.stdout.strip().lower() == 'true':
+                            logger.info("Screen sharing detected: Screen recording indicator visible")
+                            return True
+                    except Exception as e:
+                        logger.debug(f"Failed to check recording indicator: {e}")
+                    
+                    try:
+                        # Check for TCC.db access (screen capture permissions in use)
+                        tcc_result = subprocess.run(
+                            tcc_check_cmd, 
+                            shell=True, 
+                            text=True, 
+                            capture_output=True, 
+                            timeout=1
+                        )
+                        if tcc_result.stdout.strip():
+                            for app in self.screen_sharing_apps:
+                                if app.lower() in tcc_result.stdout.lower():
+                                    logger.info(f"Screen sharing detected: {app} is accessing screen capture permissions")
+                                    return True
+                    except Exception as e:
+                        logger.debug(f"Failed to check TCC database: {e}")
+                    
+                    try:
+                        # Check for CoreMedia usage by conferencing apps
+                        coremedia_result = subprocess.run(
+                            coremedia_check_cmd, 
+                            shell=True, 
+                            text=True, 
+                            capture_output=True, 
+                            timeout=1
+                        )
+                        if coremedia_result.stdout.strip():
+                            for app in self.screen_sharing_apps:
+                                if app.lower() in coremedia_result.stdout.lower():
+                                    logger.info(f"Screen sharing detected: {app} is using CoreMedia frameworks")
+                                    return True
+                    except Exception as e:
+                        logger.debug(f"Failed to check CoreMedia usage: {e}")
+                    
+                    return False
+                except Exception as e:
+                    logger.error(f"Error checking macOS screen sharing: {str(e)}")
+                    return False
             
             return False
             
@@ -166,7 +362,48 @@ class ScreenSharingDetector:
             except Exception as e:
                 logger.error(f"Error getting foreground window info: {str(e)}")
         
-        # Fallback for non-Windows or if Windows-specific code fails
+        # macOS-specific implementation
+        elif self.is_macos:
+            try:
+                # Use AppleScript to get foreground window info
+                applescript = """
+                osascript -e 'tell application "System Events"
+                    set frontApp to name of first application process whose frontmost is true
+                    set frontAppWindow to ""
+                    try
+                        set frontAppWindow to name of front window of application process frontApp
+                    end try
+                    return frontApp & "," & frontAppWindow
+                end tell'
+                """
+                
+                result = subprocess.run(applescript, shell=True, text=True, capture_output=True)
+                output = result.stdout.strip().split(",")
+                
+                app_name = output[0] if len(output) > 0 else "Unknown"
+                window_title = output[1] if len(output) > 1 else ""
+                
+                # Get PID and executable if psutil is available
+                pid = 0
+                executable = ""
+                
+                if HAS_PSUTIL:
+                    for proc in psutil.process_iter(['pid', 'name', 'exe']):
+                        if app_name.lower() in proc.info['name'].lower():
+                            pid = proc.info['pid']
+                            executable = proc.info['exe'] if 'exe' in proc.info else ""
+                            break
+                
+                return {
+                    "pid": pid,
+                    "name": app_name,
+                    "title": window_title or app_name,
+                    "executable": executable
+                }
+            except Exception as e:
+                logger.error(f"Error getting macOS foreground window info: {str(e)}")
+        
+        # Fallback for other platforms or if platform-specific code fails
         if HAS_PSUTIL:
             try:
                 # Get active process info using psutil

@@ -1,12 +1,17 @@
 """
 AI Assistant module for providing coding help via OpenAI API
+With enhanced capabilities for coding interview assistance
 """
 import os
 import json
 import logging
+import platform
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
+
+# Determine if we're running on macOS
+IS_MACOS = platform.system() == "Darwin"
 
 class AIAssistant:
     """
@@ -102,5 +107,52 @@ class AIAssistant:
             
         except Exception as e:
             error_msg = f"Error analyzing code: {str(e)}"
+            logger.error(error_msg)
+            return f"Error: {error_msg}"
+            
+    def get_macos_advice(self, code_problem, language=None):
+        """
+        Get macOS-specific advice for coding problems
+        
+        Args:
+            code_problem (str): Description of the coding problem
+            language (str, optional): Programming language
+            
+        Returns:
+            str: macOS-specific advice
+        """
+        if not IS_MACOS:
+            return "This feature is only available on macOS."
+            
+        if not self.client:
+            return "Error: OpenAI API client not initialized. Please check your API key."
+            
+        try:
+            # Prepare the prompt with macOS specifics
+            content = f"""I'm in a coding interview on macOS. Please help me with this problem:
+
+{code_problem}
+
+In your response, please include any macOS-specific considerations, APIs, or optimizations if relevant."""
+            
+            if language:
+                if language.lower() in ['swift', 'objective-c']:
+                    content += "\n\nPlease provide sample code using modern Swift/Objective-C best practices and Apple's recommended APIs."
+                    
+            # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
+            # do not change this unless explicitly requested by the user
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are an expert Apple platform developer familiar with macOS, Swift, Objective-C, and macOS-specific optimization techniques. Help the user with their coding interview question, providing macOS-specific insights when relevant."},
+                    {"role": "user", "content": content}
+                ],
+                max_tokens=2000
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            error_msg = f"Error getting macOS advice: {str(e)}"
             logger.error(error_msg)
             return f"Error: {error_msg}"

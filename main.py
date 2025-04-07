@@ -2,7 +2,7 @@
 Discreet AI Coding Assistant - Main Application
 
 This application provides invisible AI coding assistance during screen sharing sessions.
-Cross-platform with enhanced Windows functionality.
+Cross-platform with enhanced macOS and Windows functionality. Optimized for macOS.
 """
 import sys
 import os
@@ -41,6 +41,18 @@ logger = logging.getLogger(__name__)
 def main():
     """Main application entry point"""
     try:
+        # Detect platform
+        system = platform.system()
+        is_macos = system == "Darwin"
+        is_windows = system == "Windows"
+        is_linux = system == "Linux"
+        
+        # Print welcome message with platform info
+        print(f"Discreet AI Coding Assistant")
+        print(f"Detected platform: {system}")
+        print(f"Optimized for: {'macOS' if is_macos else 'Windows' if is_windows else 'Linux'}")
+        print("=" * 50)
+        
         # Initialize configuration
         config = Config()
         
@@ -49,6 +61,17 @@ def main():
         
         # Initialize screen sharing detector
         screen_detector = ScreenSharingDetector()
+        
+        # macOS-specific setup
+        if is_macos:
+            # Check for macOS-specific dependencies
+            try:
+                import objc
+                HAS_OBJC = True
+                print("✓ PyObjC available: Enhanced macOS invisibility enabled")
+            except ImportError:
+                HAS_OBJC = False
+                print("⚠️  PyObjC not available: Limited macOS invisibility (install with 'pip install pyobjc')")
         
         # Check if we're in GUI mode or CLI mode
         if HAS_GUI and HAS_PYQT:

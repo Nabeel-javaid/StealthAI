@@ -164,6 +164,13 @@ class TransparentWindow(QWidget):
         self.analyze_button.clicked.connect(self.analyze_code)
         button_layout.addWidget(self.analyze_button)
         
+        # Add macOS specific button if on macOS
+        if platform.system() == "Darwin":
+            self.macos_button = QPushButton("macOS Tips")
+            self.macos_button.clicked.connect(self.get_macos_advice)
+            self.macos_button.setToolTip("Get macOS-specific advice for this problem")
+            button_layout.addWidget(self.macos_button)
+        
         self.clear_button = QPushButton("Clear")
         self.clear_button.clicked.connect(self.clear_inputs)
         button_layout.addWidget(self.clear_button)
@@ -324,9 +331,122 @@ class TransparentWindow(QWidget):
         Args:
             enable (bool): True to enable invisibility, False to disable
         """
-        # Currently not implemented, but placeholder for future implementation
-        # macOS has different techniques for hiding windows from screen capture
-        logger.info(f"macOS invisibility techniques not implemented yet")
+        try:
+            # Import macOS specific libraries
+            import objc
+            from Foundation import NSObject, NSAppleScript
+            
+            # On macOS, we can use the following techniques:
+            # 1. Set the window layer to be excluded from screen capture
+            # 2. Use the CGWindowLevel API to position window in a capture-free layer
+            
+            if enable:
+                # Technique 1: Use NSWindow.sharingType = NSWindowSharingNone
+                # We need to access the underlying NSWindow
+                win_id = self.winId()
+                
+                # AppleScript to set sharing type
+                script_text = f"""
+                tell application "System Events"
+                    set frontWindow to first window of (first application process whose frontmost is true)
+                    set asProperty to value of attribute "AXWindowSharesVideoContent" of frontWindow to false
+                end tell
+                """
+                
+                script = NSAppleScript.alloc().initWithSource_(script_text)
+                script.executeAndReturnError_(None)
+                
+                # Technique 2: Set window level to avoid capture
+                # Uses PyObjC to call native macOS APIs
+                from Cocoa import NSWindow
+                
+                # Get the NSWindow from our QWidget
+                ns_window = objc.objc_object(c_void_p=int(win_id))
+                
+                # Set the window's sharingType property
+                ns_window.setSharingType_(0)  # NSWindowSharingNone
+                
+                # Set a window level that's not captured
+                ns_window.setLevel_(NSWindow.kCGHIDEventTap + 1)
+                
+                logger.info(f"Applied macOS invisibility techniques")
+            else:
+                # Restore normal window properties
+                # Use AppleScript to reset sharing type
+                script_text = f"""
+                tell application "System Events"
+                    set frontWindow to first window of (first application process whose frontmost is true)
+                    set asProperty to value of attribute "AXWindowSharesVideoContent" of frontWindow to true
+                end tell
+                """
+                
+                script = NSAppleScript.alloc().initWithSource_(script_text)
+                script.executeAndReturnError_(None)
+                
+                # Reset window level using PyObjC
+                from Cocoa import NSWindow
+                
+                # Get the NSWindow from our QWidget
+                ns_window = objc.objc_object(c_void_p=int(self.winId()))
+                
+                # Reset sharing type
+                ns_window.setSharingType_(1)  # NSWindowSharingReadOnly
+                
+                # Reset window level
+                ns_window.setLevel_(NSWindow.kCGNormalWindowLevel)
+                
+                logger.info(f"Disabled macOS invisibility techniques")
+                
+        except ImportError:
+            # If PyObjC libraries aren't available, use fallback
+            logger.warning("PyObjC not available for macOS window invisibility")
+            self._apply_macos_invisibility_fallback(enable)
+        except Exception as e:
+            logger.error(f"Failed to apply macOS invisibility ({enable}): {str(e)}")
+            self._apply_macos_invisibility_fallback(enable)
+    
+    def _apply_macos_invisibility_fallback(self, enable):
+        """Fallback method for macOS screen sharing invisibility when PyObjC isn't available"""
+        try:
+            # Fallback to using subprocess to run AppleScript commands
+            import subprocess
+            
+            if enable:
+                # Make window more transparent during screen sharing
+                self.setWindowOpacity(0.65)
+                
+                # Try to use Apple Script to modify window properties
+                cmd = """
+                osascript -e '
+                tell application "System Events" 
+                    set frontApp to first application process whose frontmost is true
+                    set frontWindow to first window of frontApp
+                    set value of attribute "AXWindowSharesVideoContent" of frontWindow to false
+                end tell'
+                """
+                subprocess.run(cmd, shell=True)
+                
+                logger.info("Applied macOS invisibility fallback technique")
+            else:
+                # Restore normal transparency
+                self.setWindowOpacity(0.95)
+                
+                # Reset window sharing property
+                cmd = """
+                osascript -e '
+                tell application "System Events" 
+                    set frontApp to first application process whose frontmost is true
+                    set frontWindow to first window of frontApp
+                    set value of attribute "AXWindowSharesVideoContent" of frontWindow to true
+                end tell'
+                """
+                subprocess.run(cmd, shell=True)
+                
+                logger.info("Disabled macOS invisibility fallback technique")
+        except Exception as e:
+            logger.error(f"Failed to apply macOS invisibility fallback ({enable}): {str(e)}")
+            # Ultimate fallback - just adjust opacity
+            self.setWindowOpacity(0.65 if enable else 0.95)
                     
     def mousePressEvent(self, event):
         """Handle mouse press events for dragging the window"""
@@ -413,6 +533,44 @@ class TransparentWindow(QWidget):
         self.code_input.clear()
         self.response_output.clear()
         self.status_label.setText("Ready")
+    
+    def get_macos_advice(self):
+        """Get macOS-specific advice for the current problem"""
+        # Only available on macOS
+        if platform.system() != "Darwin":
+            self.response_output.setPlainText("macOS specific advice is only available on macOS systems.")
+            return
+            
+        try:
+            problem = self.problem_input.toPlainText().strip()
+            language = self.language_selector.currentText()
+            
+            if not problem:
+                self.response_output.setPlainText("Please enter a problem description.")
+                return
+                
+            self.status_label.setText("Getting macOS tips...")
+            self.response_output.setPlainText("Fetching macOS-specific advice...")
+            
+            # Get AI response in a separate thread to avoid UI freezing
+            import threading
+            
+            def get_macos_tips():
+                response = self.ai_assistant.get_macos_advice(problem, language)
+                
+                # Update UI from the main thread
+                QApplication.instance().postEvent(
+                    self,
+                    UpdateResponseEvent(response)
+                )
+                
+            threading.Thread(target=get_macos_tips, daemon=True).start()
+            
+        except Exception as e:
+            error_msg = f"Error getting macOS advice: {str(e)}"
+            logger.error(error_msg)
+            self.response_output.setPlainText(f"Error: {error_msg}")
+            self.status_label.setText("Error")
         
     def _toggle_simulated_sharing(self, checked):
         """

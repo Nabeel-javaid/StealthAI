@@ -4,6 +4,7 @@ Configuration module for the AI coding assistant
 import os
 import json
 import logging
+import platform
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -17,9 +18,16 @@ class Config:
         """Initialize configuration with default values and load from file if available"""
         self.config_file = os.path.join(os.path.expanduser("~"), ".coding_assistant_config.json")
         
+        # Determine default shortcut based on platform
+        system = platform.system()
+        if system == "Darwin":  # macOS
+            default_shortcut = "ctrl+alt+c"
+        else:  # Windows or Linux
+            default_shortcut = "ctrl+shift+a"
+            
         # Default configuration
         self.defaults = {
-            "activation_shortcut": "ctrl+shift+a",
+            "activation_shortcut": default_shortcut,
             "opacity": 0.9,
             "font_size": 12,
             "max_tokens": 1000,
@@ -33,7 +41,8 @@ class Config:
                 "width": 800,
                 "height": 600
             },
-            "auto_save": True
+            "auto_save": True,
+            "platform": system
         }
         
         # Current configuration (starts with defaults)

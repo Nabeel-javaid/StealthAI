@@ -28,20 +28,54 @@ This application is designed for educational purposes to help during coding inte
 ### macOS Installation
 
 1. Clone this repository to your Mac
-2. Create a Python virtual environment (optional but recommended)
+2. Create a Python virtual environment (optional but recommended):
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 3. Install required dependencies:
-   - Core: PyQt5, pynput, openai, psutil
-   - macOS specific: pyobjc-core, pyobjc-framework-Cocoa, pyobjc-framework-Quartz
-4. Set your OpenAI API key as an environment variable
-5. Run the application with `python main.py`
+   ```bash
+   # Core dependencies
+   pip install PyQt5 pynput openai psutil
+   
+   # macOS specific dependencies 
+   pip install pyobjc-core pyobjc-framework-Cocoa pyobjc-framework-Quartz
+   ```
+4. Set your OpenAI API key:
+   - As an environment variable: `export OPENAI_API_KEY="your-api-key"`
+   - Or create a `.env` file with the content: `OPENAI_API_KEY=your-api-key`
 
 ### Running on macOS
 
-1. Start the application with `python main.py`
-2. Use the keyboard shortcut Cmd+Option+C to toggle the assistant window
-3. Enter your coding question or paste your code
-4. Click "Get Help" or "macOS Tips" to get AI assistance
-5. The window will automatically become invisible during screen sharing
+#### Option 1: Create a macOS App (Recommended)
+This avoids Terminal permission issues and provides a better experience:
+
+1. Run the app creation script:
+   ```bash
+   python create_macos_app.py
+   ```
+2. Open the created `StealthAI.app` by right-clicking and selecting "Open"
+3. Grant permissions when prompted
+4. Use Cmd+Option+C to toggle the assistant window
+
+#### Option 2: Run directly 
+For regular use:
+```bash
+# Run with standard launcher
+python run_macos_app.py
+```
+
+For development/debugging:
+```bash
+# Run directly
+python main.py
+```
+
+### Using the App
+1. Use the keyboard shortcut Cmd+Option+C to toggle the assistant window
+2. Enter your coding question or paste your code
+3. Click "Get Help" or "macOS Tips" to get AI assistance
+4. The window will automatically become invisible during screen sharing
 
 ## macOS-Specific Features
 

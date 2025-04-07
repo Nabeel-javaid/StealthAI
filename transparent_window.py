@@ -335,67 +335,76 @@ class TransparentWindow(QWidget):
             # Import macOS specific libraries
             import objc
             from Foundation import NSObject, NSAppleScript
+            from ctypes import c_void_p
             
             # On macOS, we can use the following techniques:
             # 1. Set the window layer to be excluded from screen capture
             # 2. Use the CGWindowLevel API to position window in a capture-free layer
             
-            if enable:
-                # Technique 1: Use NSWindow.sharingType = NSWindowSharingNone
-                # We need to access the underlying NSWindow
-                win_id = self.winId()
-                
-                # AppleScript to set sharing type
-                script_text = f"""
-                tell application "System Events"
-                    set frontWindow to first window of (first application process whose frontmost is true)
-                    set asProperty to value of attribute "AXWindowSharesVideoContent" of frontWindow to false
-                end tell
-                """
-                
-                script = NSAppleScript.alloc().initWithSource_(script_text)
-                script.executeAndReturnError_(None)
-                
-                # Technique 2: Set window level to avoid capture
+            # Skip the AppleScript-based techniques when running from Terminal
+            # This avoids the "AXWindowSharesVideoContent" error
+            running_from_terminal = os.environ.get('TERM_PROGRAM') == 'Apple_Terminal'
+            
+            if not running_from_terminal:
+                try:
+                    if enable:
+                        # Technique 1: Use AppleScript to set sharing type
+                        script_text = """
+                        tell application "System Events"
+                            set frontWindow to first window of (first application process whose frontmost is true)
+                            try
+                                set asProperty to value of attribute "AXWindowSharesVideoContent" of frontWindow to false
+                            end try
+                        end tell
+                        """
+                        
+                        script = NSAppleScript.alloc().initWithSource_(script_text)
+                        _, error_info = script.executeAndReturnError_(None)
+                        if error_info:
+                            logger.warning(f"AppleScript error: {error_info}")
+                    else:
+                        # Restore normal window properties via AppleScript
+                        script_text = """
+                        tell application "System Events"
+                            set frontWindow to first window of (first application process whose frontmost is true)
+                            try
+                                set asProperty to value of attribute "AXWindowSharesVideoContent" of frontWindow to true
+                            end try
+                        end tell
+                        """
+                        
+                        script = NSAppleScript.alloc().initWithSource_(script_text)
+                        _, error_info = script.executeAndReturnError_(None)
+                except Exception as script_error:
+                    logger.warning(f"AppleScript technique failed, continuing with direct NSWindow methods: {script_error}")
+            
+            # Always apply the direct NSWindow techniques which are more reliable
+            try:
                 # Uses PyObjC to call native macOS APIs
                 from Cocoa import NSWindow
                 
                 # Get the NSWindow from our QWidget
+                win_id = self.winId()
                 ns_window = objc.objc_object(c_void_p=int(win_id))
                 
-                # Set the window's sharingType property
-                ns_window.setSharingType_(0)  # NSWindowSharingNone
-                
-                # Set a window level that's not captured
-                ns_window.setLevel_(NSWindow.kCGHIDEventTap + 1)
-                
-                logger.info(f"Applied macOS invisibility techniques")
-            else:
-                # Restore normal window properties
-                # Use AppleScript to reset sharing type
-                script_text = f"""
-                tell application "System Events"
-                    set frontWindow to first window of (first application process whose frontmost is true)
-                    set asProperty to value of attribute "AXWindowSharesVideoContent" of frontWindow to true
-                end tell
-                """
-                
-                script = NSAppleScript.alloc().initWithSource_(script_text)
-                script.executeAndReturnError_(None)
-                
-                # Reset window level using PyObjC
-                from Cocoa import NSWindow
-                
-                # Get the NSWindow from our QWidget
-                ns_window = objc.objc_object(c_void_p=int(self.winId()))
-                
-                # Reset sharing type
-                ns_window.setSharingType_(1)  # NSWindowSharingReadOnly
-                
-                # Reset window level
-                ns_window.setLevel_(NSWindow.kCGNormalWindowLevel)
-                
-                logger.info(f"Disabled macOS invisibility techniques")
+                if enable:
+                    # Set the window's sharingType property
+                    ns_window.setSharingType_(0)  # NSWindowSharingNone
+                    
+                    # Set a window level that's not captured
+                    ns_window.setLevel_(NSWindow.kCGHIDEventTap + 1)
+                    
+                    logger.info("Applied macOS invisibility techniques using NSWindow")
+                else:
+                    # Reset sharing type
+                    ns_window.setSharingType_(1)  # NSWindowSharingReadOnly
+                    
+                    # Reset window level
+                    ns_window.setLevel_(NSWindow.kCGNormalWindowLevel)
+                    
+                    logger.info("Disabled macOS invisibility techniques using NSWindow")
+            except Exception as ns_error:
+                logger.warning(f"NSWindow invisibility technique failed: {ns_error}")
                 
         except ImportError:
             # If PyObjC libraries aren't available, use fallback
@@ -411,38 +420,50 @@ class TransparentWindow(QWidget):
             # Fallback to using subprocess to run AppleScript commands
             import subprocess
             
-            if enable:
-                # Make window more transparent during screen sharing
-                self.setWindowOpacity(0.65)
-                
-                # Try to use Apple Script to modify window properties
-                cmd = """
-                osascript -e '
-                tell application "System Events" 
-                    set frontApp to first application process whose frontmost is true
-                    set frontWindow to first window of frontApp
-                    set value of attribute "AXWindowSharesVideoContent" of frontWindow to false
-                end tell'
-                """
-                subprocess.run(cmd, shell=True)
-                
-                logger.info("Applied macOS invisibility fallback technique")
+            # Make window more transparent during screen sharing
+            self.setWindowOpacity(0.65 if enable else 0.95)
+            
+            # Skip the AppleScript part if running from Terminal
+            running_from_terminal = os.environ.get('TERM_PROGRAM') == 'Apple_Terminal'
+            
+            if not running_from_terminal:
+                try:
+                    # Try to use Apple Script to modify window properties
+                    # Using error handling in the AppleScript itself
+                    if enable:
+                        cmd = """
+                        osascript -e '
+                        tell application "System Events" 
+                            set frontApp to first application process whose frontmost is true
+                            set frontWindow to first window of frontApp
+                            try
+                                set value of attribute "AXWindowSharesVideoContent" of frontWindow to false
+                            on error
+                                -- Silently fail if attribute can't be set
+                            end try
+                        end tell'
+                        """
+                        subprocess.run(cmd, shell=True, capture_output=True)
+                        logger.info("Applied macOS invisibility fallback technique")
+                    else:
+                        cmd = """
+                        osascript -e '
+                        tell application "System Events" 
+                            set frontApp to first application process whose frontmost is true
+                            set frontWindow to first window of frontApp
+                            try
+                                set value of attribute "AXWindowSharesVideoContent" of frontWindow to true
+                            on error
+                                -- Silently fail if attribute can't be set
+                            end try
+                        end tell'
+                        """
+                        subprocess.run(cmd, shell=True, capture_output=True)
+                        logger.info("Disabled macOS invisibility fallback technique")
+                except Exception as script_error:
+                    logger.warning(f"AppleScript fallback failed: {script_error}")
             else:
-                # Restore normal transparency
-                self.setWindowOpacity(0.95)
-                
-                # Reset window sharing property
-                cmd = """
-                osascript -e '
-                tell application "System Events" 
-                    set frontApp to first application process whose frontmost is true
-                    set frontWindow to first window of frontApp
-                    set value of attribute "AXWindowSharesVideoContent" of frontWindow to true
-                end tell'
-                """
-                subprocess.run(cmd, shell=True)
-                
-                logger.info("Disabled macOS invisibility fallback technique")
+                logger.info("Running from Terminal - skipping AppleScript invisibility techniques")
         except Exception as e:
             logger.error(f"Failed to apply macOS invisibility fallback ({enable}): {str(e)}")
             # Ultimate fallback - just adjust opacity

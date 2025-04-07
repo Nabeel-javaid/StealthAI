@@ -1,115 +1,135 @@
-# Discreet AI Coding Assistant for macOS
+# StealthAI: Discreet AI Coding Assistant for macOS
 
-A discreet macOS application that provides invisible AI coding assistance during screen sharing sessions, optimized specifically for macOS.
+StealthAI is a specialized AI coding assistant that remains invisible during screen sharing sessions (Zoom, Teams, etc.), designed exclusively for macOS. It helps developers during coding interviews, technical assessments, and pair programming sessions by providing AI assistance that only you can see.
 
-## Overview
+![StealthAI Banner](generated-icon.png)
 
-This application is designed for educational purposes to help during coding interviews on macOS. It allows you to get AI-powered coding assistance during screen sharing sessions without the assistance being visible to other participants.
+## Key Features
 
-## Features
-
-- Background operation during screen sharing (completely invisible to viewers)
-- Keyboard shortcut activation (default: Cmd+Option+C)
-- AI-powered responses visible only to you
-- Specialized coding interview assistance
-- macOS-optimized screen sharing detection for Zoom, Teams, and other applications
-- Advanced macOS-specific invisibility techniques
-- Special macOS development advice and API guidance
+- **Invisible During Screen Sharing**: Automatically detects screen sharing in macOS and becomes invisible to others
+- **Instant AI Assistance**: Get coding help, problem-solving tips, and macOS development advice
+- **Keyboard Shortcut Activation**: Press ⌘+⌥+C (Command+Option+C) to show/hide the assistant window
+- **macOS-Optimized**: Built specifically for Apple platforms with native macOS APIs
+- **Code Analysis**: Submit your code for instant analysis, suggestions, and improvements
+- **Swift & Objective-C Expert**: Gets specialized assistance for Apple platform development
 
 ## Requirements
 
-- macOS 10.14 (Mojave) or higher
-- Python 3.8 or higher
+- macOS 10.14 (Mojave) or newer
+- Python 3.7+
 - OpenAI API key
-- Dependencies: PyQt5, pynput, openai, psutil, pyobjc
+- macOS permissions:
+  - Accessibility (for keyboard shortcuts)
+  - Screen Recording (optional, for enhanced screen sharing detection)
 
-## Installation and Running Instructions
+## Installation
 
-### macOS Installation
-
-1. Clone this repository to your Mac
-2. Create a Python virtual environment (optional but recommended):
+1. Clone this repository
+2. Run the setup script:
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate
+   ./run.sh
    ```
-3. Install required dependencies:
-   ```bash
-   # Core dependencies
-   pip install PyQt5 pynput openai psutil
-   
-   # macOS specific dependencies 
-   pip install pyobjc-core pyobjc-framework-Cocoa pyobjc-framework-Quartz
-   ```
-4. Set your OpenAI API key:
-   - As an environment variable: `export OPENAI_API_KEY="your-api-key"`
-   - Or create a `.env` file with the content: `OPENAI_API_KEY=your-api-key`
+3. Follow the prompts to install dependencies and set up your API key
 
-### Running on macOS
+### Required Python Packages
 
-#### Option 1: Create a macOS App (Recommended)
-This avoids Terminal permission issues and provides a better experience:
+- openai
+- psutil
+- pynput
+- PyQt5 (for GUI)
+- pyobjc (for macOS integration)
 
-1. Run the app creation script:
+## Usage
+
+### Running the Application
+
+Use our convenient script to run the application:
+
+```bash
+./run.sh
+```
+
+Choose from multiple launch modes:
+1. **Standard Mode**: Activates with keyboard shortcut (⌘+⌥+C)
+2. **Debug Mode**: Shows window immediately for testing
+3. **CLI Fallback Mode**: Text-based interface when GUI isn't available
+4. **Create macOS App**: Bundles the application as a native macOS app
+
+### Creating a macOS App Bundle
+
+For the best experience, create a standalone macOS application:
+
+1. Run the bundling script:
    ```bash
    python create_macos_app.py
    ```
-2. Open the created `StealthAI.app` by right-clicking and selecting "Open"
-3. Grant permissions when prompted
-4. Use Cmd+Option+C to toggle the assistant window
+   
+2. The app will be created in the current directory as `StealthAI.app`
 
-#### Option 2: Run directly 
-For regular use:
-```bash
-# Run with standard launcher
-python run_macos_app.py
-```
+3. Move it to your Applications folder (optional):
+   ```bash
+   mv StealthAI.app /Applications/
+   ```
 
-For development/debugging:
-```bash
-# Run directly
-python main.py
-```
+### Granting Required Permissions
 
-### Using the App
-1. Use the keyboard shortcut Cmd+Option+C to toggle the assistant window
-2. Enter your coding question or paste your code
-3. Click "Get Help" or "macOS Tips" to get AI assistance
-4. The window will automatically become invisible during screen sharing
+1. **Accessibility Permissions**:
+   - Required for keyboard shortcuts to work
+   - Go to System Preferences > Security & Privacy > Privacy > Accessibility
+   - Add Terminal or StealthAI.app to the list of allowed apps
 
-## macOS-Specific Features
+2. **Screen Recording Permissions** (optional but recommended):
+   - Enhances screen sharing detection
+   - Go to System Preferences > Security & Privacy > Privacy > Screen Recording
+   - Add Terminal or StealthAI.app to the list of allowed apps
 
-- Window sharing prevention using NSWindowSharingNone and advanced macOS APIs
-- Invisible window layer configuration using Cocoa and Quartz frameworks
-- Special "macOS Tips" feature for Apple platform development advice
-- Comprehensive support for Swift, Objective-C, and Apple frameworks
-- Deep integration with macOS window management and screen capture detection
-- Advanced detection for all popular screen sharing applications on macOS:
-  - Zoom, Microsoft Teams, Slack, Discord
-  - Webex, Google Meet, BlueJeans
-  - Built-in macOS Screen Sharing
-  - All major browsers (Safari, Chrome, Firefox)
-- Custom macOS-specific keyboard shortcuts using Cmd+Option instead of Ctrl+Alt
-- Designed for macOS accessibility and user experience guidelines
-- macOS dark mode compatibility and automatic appearance switching
+## Keyboard Shortcuts
 
-## Required Permissions
+- **⌘+⌥+C** (Command+Option+C): Show/hide the assistant window
 
-- Accessibility permissions (for keyboard shortcuts)
-- Screen recording permissions (for detecting screen sharing)
+## Troubleshooting
 
-## Configuration
+### Keyboard Shortcuts Not Working
 
-Edit `~/.coding_assistant_config.json` to customize:
-- Keyboard shortcut (default: Cmd+Option+C)
-- Window opacity
-- Default programming language 
-- UI theme
+1. Ensure Terminal or StealthAI.app has Accessibility permissions
+2. Try running in Debug Mode to verify the application works
+3. Check if the pynput package is installed correctly
 
-## Disclaimer
+### Can't Detect Screen Sharing
 
-This tool is for educational purposes only. It demonstrates techniques that allow content to remain invisible during screen sharing. Always use ethically and responsibly, respecting privacy and academic integrity policies.
+1. Grant Screen Recording permissions to Terminal or StealthAI.app
+2. The app will still work without this permission but may not auto-hide during sharing
+
+### API Key Issues
+
+1. Make sure your OpenAI API key is correctly set in your environment
+2. You can add it to your shell profile (~/.zshrc or ~/.bash_profile):
+   ```bash
+   export OPENAI_API_KEY="your-api-key-here"
+   ```
+3. Or set it temporarily for the current session:
+   ```bash
+   export OPENAI_API_KEY="your-api-key-here"
+   ```
+
+### App Not Working
+
+1. Run the test scripts to diagnose issues:
+   ```bash
+   python test_api.py     # Test API connectivity
+   python test_keyboard.py  # Test keyboard shortcuts
+   ```
+2. Try the CLI Fallback Mode if GUI isn't working:
+   ```bash
+   python fallback_mode.py
+   ```
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Uses OpenAI API for AI assistance
+- Built with PyQt5 for the GUI
+- Uses pyobjc for macOS integration

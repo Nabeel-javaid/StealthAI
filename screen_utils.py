@@ -124,50 +124,148 @@ class ScreenSharingDetector:
             # macOS implementation - check for screen sharing indicators
             elif self.is_macos:
                 try:
-                    # Enhanced macOS screen sharing detection with multiple techniques
+                    # First try: Use native macOS APIs through PyObjC if available
+                    # This is the most reliable method but requires PyObjC
+                    try:
+                        # Try using native macOS APIs with PyObjC
+                        import objc
+                        from Foundation import NSBundle
+                        
+                        # Load the CoreGraphics framework to get access to CGWindowListCopyWindowInfo
+                        cg = NSBundle.bundleWithIdentifier_('com.apple.CoreGraphics')
+                        functions = [
+                            ('CGWindowListCopyWindowInfo', b'@@I^{__CFString=}'),
+                            ('kCGWindowListOptionOnScreenOnly', b'I'),
+                            ('kCGNullWindowID', b'I'),
+                            ('kCGWindowOwnerName', b'@'),
+                            ('kCGWindowName', b'@')
+                        ]
+                        
+                        # Register the functions and constants with the runtime
+                        objc.loadBundleFunctions(cg, globals(), functions)
+                        
+                        # Get the list of windows
+                        window_list = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID)
+                        
+                        # Look for window titles and owner names related to screen sharing
+                        sharing_indicators = [
+                            "screen sharing", "sharing screen", "presenting", "screen share", 
+                            "is shared", "remote control", "stop sharing", "stop share",
+                            "you are presenting", "viewing your screen", "zoom.us share", "teams sharing"
+                        ]
+                        
+                        for window in window_list:
+                            # Check window owner (app name)
+                            if kCGWindowOwnerName in window:
+                                app_name = window[kCGWindowOwnerName]
+                                if any(app.lower() in str(app_name).lower() for app in self.screen_sharing_apps):
+                                    logger.debug(f"Found potential screen sharing app: {app_name}")
+                                    
+                                    # If it's known to be a screen sharing app, check if it has sharing indicators
+                                    if kCGWindowName in window and window[kCGWindowName]:
+                                        window_title = window[kCGWindowName]
+                                        if any(indicator in str(window_title).lower() for indicator in sharing_indicators):
+                                            logger.info(f"Detected screen sharing: {app_name} - {window_title}")
+                                            return True
+                        
+                        # Check for AXWindowSharesVideoContent using accessibility API
+                        try:
+                            # Load the Accessibility framework
+                            from Cocoa import NSWorkspace, NSRunningApplication
+                            
+                            # Get frontmost application
+                            workspace = NSWorkspace.sharedWorkspace()
+                            frontmost_app = workspace.frontmostApplication()
+                            
+                            # Check if this is a potential screen sharing app
+                            if frontmost_app and frontmost_app.localizedName():
+                                app_name = frontmost_app.localizedName()
+                                if any(app.lower() in str(app_name).lower() for app in self.screen_sharing_apps):
+                                    logger.debug(f"Checking AXWindowSharesVideoContent for: {app_name}")
+                                    # This app might be sharing the screen
+                                    # We would check AXWindowSharesVideoContent here if we had proper permissions
+                                    # Since this requires special permissions, we'll use process-based detection instead
+                                    return True
+                        except Exception as e:
+                            logger.debug(f"Unable to use AXWindowSharesVideoContent: {e}")
+                        
+                    except ImportError as e:
+                        logger.debug(f"PyObjC not available, falling back to command-line checks: {e}")
+                        # Continue with fallback methods
                     
-                    # 1. Look for specific macOS processes related to screen sharing
+                    # Fallback method 1: Look for specific macOS processes related to screen sharing
                     mac_sharing_processes = [
                         "ScreenSharing", "screencapture", "QuickTime Player", 
                         "ScreenCaptureKit", "com.apple.screensharing", "avconferenced",
                         "ShareKit", "ScreensharingAgent", "screencaptureui", "corescreend"
                     ]
                     
-                    # 2. Check for screen sharing system service status
+                    # Fallback method 2: Check for screen sharing system service status
+                    # This runs an AppleScript that checks for processes related to screen sharing
                     service_check_cmd = """
-                    osascript -e 'do shell script "ps aux | grep -v grep | grep -E \\"Screen Sharing|ScreenSharing|screencapture|screencaptureui\\"" with administrator privileges'
+                    osascript -e 'do shell script "ps aux | grep -v grep | grep -E \\"Screen Sharing|ScreenSharing|screencapture|screencaptureui\\"" 2>/dev/null || exit 0'
                     """
                     
-                    # 3. Check for Zoom, Teams, and other common apps in screen sharing mode
-                    zoom_check_cmd = """
-                    osascript -e 'tell application "System Events" to tell process "zoom.us" to return (get value of attribute "AXMenuItemCmdChar" of menu item "Stop Share" of menu 1 of menu bar item "Meeting" of menu bar 1)' 2>/dev/null
-                    """
+                    try:
+                        result = subprocess.run(service_check_cmd, shell=True, text=True, capture_output=True)
+                        if result.returncode == 0 and result.stdout.strip():
+                            logger.info("Detected screen sharing through system services")
+                            return True
+                    except Exception as e:
+                        logger.debug(f"Error checking screen sharing services: {e}")
                     
-                    teams_check_cmd = """
-                    osascript -e 'tell application "System Events" to tell process "Microsoft Teams" to return (get name of menu items of menu 1 of menu bar item "Share" of menu bar 1 contains "Stop sharing")' 2>/dev/null
-                    """
+                    # Fallback method 3: Try to detect Zoom screen sharing
+                    # This is more reliable and doesn't require accessibility permissions
+                    has_zoom = False
                     
-                    # 4. Check for macOS Screen Sharing Daemon activity
-                    daemon_check_cmd = "ps aux | grep -v grep | grep screensharingd"
+                    try:
+                        result = subprocess.run("ps aux | grep -v grep | grep -i 'zoom.us'", 
+                                             shell=True, text=True, capture_output=True)
+                        has_zoom = result.returncode == 0 and "zoom.us" in result.stdout
+                        
+                        if has_zoom:
+                            # Check if Zoom is in screen sharing mode by looking for specific Zoom processes
+                            sharing_check = subprocess.run(
+                                "ps aux | grep -v grep | grep -i 'zoom.us' | grep -i 'sharing'", 
+                                shell=True, text=True, capture_output=True)
+                            
+                            if sharing_check.returncode == 0 and sharing_check.stdout.strip():
+                                logger.info("Detected Zoom screen sharing")
+                                return True
+                    except Exception as e:
+                        logger.debug(f"Error checking Zoom screen sharing: {e}")
                     
-                    # 5. Check for screen recording indicator in menu bar
-                    recording_indicator_cmd = """
-                    osascript -e '
-                    tell application "System Events"
-                        set menuBarItems to menu bar items of menu bar 1 of process "ControlCenter"
-                        set hasRecordingIndicator to false
-                        repeat with mbItem in menuBarItems
-                            if description of mbItem contains "screen recording" or description of mbItem contains "Screen Recording" then
-                                set hasRecordingIndicator to true
-                                exit repeat
-                            end if
-                        end repeat
-                        return hasRecordingIndicator
-                    end tell'
-                    """
+                    # Fallback method 4: Check for Microsoft Teams screen sharing
+                    has_teams = False
                     
-                    # 6. Check for TCC.db screen capture permissions in use
-                    # macOS keeps track of which apps are currently allowed to capture the screen
+                    try:
+                        result = subprocess.run("ps aux | grep -v grep | grep -i 'Microsoft Teams'", 
+                                             shell=True, text=True, capture_output=True)
+                        has_teams = result.returncode == 0 and "Microsoft Teams" in result.stdout
+                        
+                        if has_teams:
+                            # Teams creates specific processes when sharing
+                            sharing_check = subprocess.run(
+                                "ps aux | grep -v grep | grep -i 'Teams' | grep -E 'share|screen'", 
+                                shell=True, text=True, capture_output=True)
+                            
+                            if sharing_check.returncode == 0 and sharing_check.stdout.strip():
+                                logger.info("Detected Microsoft Teams screen sharing")
+                                return True
+                    except Exception as e:
+                        logger.debug(f"Error checking Teams screen sharing: {e}")
+                    
+                    # As a final fallback, we check if any screen recording/sharing processes are running
+                    for process in mac_sharing_processes:
+                        try:
+                            cmd = f"ps aux | grep -v grep | grep -i '{process}'"
+                            result = subprocess.run(cmd, shell=True, text=True, capture_output=True)
+                            if result.returncode == 0 and result.stdout.strip():
+                                logger.info(f"Detected screen sharing process: {process}")
+                                return True
+                        except Exception as e:
+                            logger.debug(f"Error checking process {process}: {e}")
+                    
                     tcc_check_cmd = """
                     osascript -e 'do shell script "lsof 2>/dev/null | grep TCC.db | grep -v grep"'
                     """

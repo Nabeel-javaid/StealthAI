@@ -102,9 +102,22 @@ def main():
             # Create main transparent window
             window = TransparentWindow(ai_assistant, screen_detector)
             
-            # Initialize keyboard listener with macOS-specific shortcut 
-            # (cmd+option+c is more natural on macOS than ctrl+alt+c)
-            activation_shortcut = config.get("activation_shortcut", "cmd+alt+c")
+            # Initialize keyboard listener with platform-specific shortcut 
+            # For macOS: cmd+option+c (Command ⌘ + Option ⌥ + C)
+            # For other platforms: ctrl+alt+c
+            if is_macos:
+                # Ensure macOS has the right shortcut format (cmd+alt+c)
+                activation_shortcut = config.get("activation_shortcut", "cmd+alt+c")
+                if activation_shortcut == "ctrl+alt+c":
+                    activation_shortcut = "cmd+alt+c"
+                    config.set("activation_shortcut", activation_shortcut)
+                    config.save()
+                    logger.info("Updated shortcut to macOS format: cmd+alt+c")
+            else:
+                # For non-macOS platforms, use ctrl+alt+c as default
+                activation_shortcut = config.get("activation_shortcut", "ctrl+alt+c")
+            
+            # Create and start keyboard listener
             keyboard_listener = KeyboardListener(activation_shortcut, window.toggle_visibility)
             keyboard_listener.start()
             
@@ -113,9 +126,11 @@ def main():
             logger.info(f"Keyboard shortcuts {'enabled' if shortcut_available else 'disabled'}")
             print(f"Activation shortcut: {activation_shortcut} {'(active)' if shortcut_available else '(DISABLED - pynput not available)'}")
             
-            # macOS-specific shortcut info
+            # Platform-specific shortcut info
             if is_macos:
                 print("   Note: On macOS, 'cmd' is the Command ⌘ key and 'alt' is the Option ⌥ key")
+                print("   Important: You must grant Terminal or StealthAI.app accessibility permissions")
+                print("   System Preferences > Security & Privacy > Privacy > Accessibility")
             
             # Setup periodic screen sharing check
             def check_screen_sharing():

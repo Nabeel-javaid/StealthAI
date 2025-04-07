@@ -11,8 +11,9 @@ try:
     from pynput import keyboard as pynput_keyboard
     HAS_KEYBOARD = True
     keyboard = pynput_keyboard
-except ImportError:
-    print("WARNING: pynput library not available. Keyboard shortcuts disabled.")
+    print("Successfully imported pynput keyboard module")
+except ImportError as e:
+    print(f"WARNING: pynput library not available ({str(e)}). Keyboard shortcuts disabled.")
     HAS_KEYBOARD = False
     # Create dummy classes for type checking
     class DummyKeyboardModule:
@@ -20,6 +21,7 @@ except ImportError:
             ctrl = None
             alt = None
             shift = None
+            cmd = None
             f1 = f2 = f3 = f4 = f5 = f6 = f7 = f8 = f9 = f10 = f11 = f12 = None
         class KeyCode:
             @staticmethod
@@ -33,6 +35,20 @@ except ImportError:
     
     # Use the dummy module
     keyboard = DummyKeyboardModule()
+    print("Using dummy keyboard module for testing - keyboard shortcuts will not function")
+    
+# Show system-specific information
+system = platform.system()
+if system == "Darwin":
+    print("macOS detected - Command (⌘) key will be treated as ctrl in pynput")
+    print("Note: On macOS, you may need to grant accessibility permissions")
+    print("  System Preferences > Security & Privacy > Privacy > Accessibility")
+elif system == "Linux":
+    print("Linux detected - pynput may require X11 or Wayland dependencies")
+    print("  For X11: sudo apt-get install python3-xlib")
+    print("  For Wayland: Support may be limited")
+elif system == "Windows":
+    print("Windows detected - no additional dependencies needed for pynput")
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +85,14 @@ class KeyboardListener:
         keys = set()
         parts = shortcut_str.lower().split('+')
         
+        # macOS specific handling
+        is_macos = platform.system() == "Darwin"
+        
+        # Debug logging for understanding the keyboard configuration
+        if is_macos:
+            logger.info("Parsing macOS shortcut: %s", shortcut_str)
+            print(f"Parsing macOS shortcut: {shortcut_str}")
+        
         for part in parts:
             part = part.strip()
             if part == 'ctrl':
@@ -77,6 +101,45 @@ class KeyboardListener:
                 keys.add(keyboard.Key.alt)
             elif part == 'shift':
                 keys.add(keyboard.Key.shift)
+            # Handle macOS Command key (maps to cmd_* keys in pynput on macOS)
+            elif part == 'cmd':
+                if is_macos:
+                    # On macOS, pynput implements Command key differently across versions
+                    # Try different attributes that might represent Command key
+                    if hasattr(keyboard.Key, 'cmd'):
+                        keys.add(keyboard.Key.cmd)
+                        print("Using Command (⌘) key as modifier (cmd)")
+                    elif hasattr(keyboard.Key, 'cmd_l'):
+                        keys.add(keyboard.Key.cmd_l)  # Left Command key
+                        print("Using left Command (⌘) key as modifier (cmd_l)")
+                    elif hasattr(keyboard.Key, 'command'):
+                        keys.add(keyboard.Key.command)
+                        print("Using Command (⌘) key as modifier (command)")
+                    else:
+                        # Fallback to ctrl if no cmd key available
+                        keys.add(keyboard.Key.ctrl)
+                        print("Using Control key as fallback for Command (⌘)")
+                else:
+                    # Non-macOS platform
+                    if hasattr(keyboard.Key, 'cmd'):
+                        keys.add(keyboard.Key.cmd)
+                    else:
+                        # Fallback if cmd not available
+                        keys.add(keyboard.Key.ctrl)
+            # macOS Option key (also known as Alt)
+            elif part in ('option', 'opt'):
+                if is_macos:
+                    if hasattr(keyboard.Key, 'alt_l'):
+                        keys.add(keyboard.Key.alt_l)  # Left Option key
+                        print("Using left Option (⌥) key as modifier (alt_l)")
+                    elif hasattr(keyboard.Key, 'option'):
+                        keys.add(keyboard.Key.option)
+                        print("Using Option (⌥) key as modifier (option)")
+                    else:
+                        keys.add(keyboard.Key.alt)
+                        print("Using Alt key as Option (⌥) key")
+                else:
+                    keys.add(keyboard.Key.alt)
             elif len(part) == 1:  # Single character key
                 keys.add(keyboard.KeyCode.from_char(part))
             else:
@@ -86,6 +149,9 @@ class KeyboardListener:
                     if 1 <= fn_num <= 12:
                         key_name = f"f{fn_num}"
                         keys.add(getattr(keyboard.Key, key_name))
+        
+        # Debug info
+        print(f"Parsed shortcut '{shortcut_str}' into keys: {keys}")
                         
         return keys
         
@@ -104,19 +170,79 @@ class KeyboardListener:
         
         def on_press(key):
             try:
+                # Debug info, especially useful on macOS
+                if platform.system() == "Darwin":
+                    logger.debug(f"Key pressed: {key}")
+                
+                # Special handling for Command key on macOS
+                if platform.system() == "Darwin" and any('cmd' in str(k) for k in self.shortcut):
+                    # Check if this is any variant of Command key
+                    cmd_pressed = False
+                    if hasattr(keyboard.Key, 'cmd') and key == keyboard.Key.cmd:
+                        cmd_pressed = True
+                    elif hasattr(keyboard.Key, 'cmd_l') and key == keyboard.Key.cmd_l:
+                        cmd_pressed = True
+                    elif hasattr(keyboard.Key, 'cmd_r') and key == keyboard.Key.cmd_r:
+                        cmd_pressed = True
+                    elif hasattr(keyboard.Key, 'command') and key == keyboard.Key.command:
+                        cmd_pressed = True
+                    
+                    # If Command key is pressed, add all Command key variants to current_keys
+                    # This handles when shortcut expects one variant but another is pressed
+                    if cmd_pressed:
+                        for k in self.shortcut:
+                            if 'cmd' in str(k) or 'command' in str(k):
+                                self.current_keys.add(k)
+                                logger.debug(f"Added Command key variant: {k}")
+                        return
+                
+                # Normal key handling
                 if key in self.shortcut:
                     self.current_keys.add(key)
-                    
+                    logger.debug(f"Added key to current keys: {key}")
+                
                 # Check if all shortcut keys are pressed
                 if all(k in self.current_keys for k in self.shortcut):
+                    logger.info(f"Shortcut triggered: {self.shortcut}")
                     self.callback()
             except Exception as e:
                 logger.error(f"Error in keyboard listener on_press: {str(e)}")
                 
         def on_release(key):
             try:
+                # Debug info for macOS
+                if platform.system() == "Darwin":
+                    logger.debug(f"Key released: {key}")
+                
+                # Special handling for Command key on macOS
+                if platform.system() == "Darwin":
+                    # Check if this is any variant of Command key
+                    cmd_released = False
+                    if hasattr(keyboard.Key, 'cmd') and key == keyboard.Key.cmd:
+                        cmd_released = True
+                    elif hasattr(keyboard.Key, 'cmd_l') and key == keyboard.Key.cmd_l:
+                        cmd_released = True
+                    elif hasattr(keyboard.Key, 'cmd_r') and key == keyboard.Key.cmd_r:
+                        cmd_released = True
+                    elif hasattr(keyboard.Key, 'command') and key == keyboard.Key.command:
+                        cmd_released = True
+                    
+                    # If Command key is released, remove all Command key variants from current_keys
+                    if cmd_released:
+                        cmd_keys_to_remove = []
+                        for k in self.current_keys:
+                            if 'cmd' in str(k) or 'command' in str(k):
+                                cmd_keys_to_remove.append(k)
+                        
+                        for k in cmd_keys_to_remove:
+                            self.current_keys.remove(k)
+                            logger.debug(f"Removed Command key variant: {k}")
+                        return
+                
+                # Normal key handling
                 if key in self.current_keys:
                     self.current_keys.remove(key)
+                    logger.debug(f"Removed key from current keys: {key}")
             except Exception as e:
                 logger.error(f"Error in keyboard listener on_release: {str(e)}")
                 
